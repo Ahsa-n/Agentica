@@ -1,0 +1,91 @@
+name: dependency-gate
+
+# Fails a pull request that closes an issue whose dependencies are still open,
+# so work on a locked issue cannot be merged. Dependencies are read the same way as
+# in issue-dependency-lock.yml. After a blocker closes, re-run this check (or push
+# again) on any open pull request for the unlocked issue.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  dependency-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that linked issues are unlocked
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const isDone = (i) => i.state === 'closed' && (i.state_reason === 'completed' || i.state_reason == null);
+
+            function bodyBlockers(body) {
+              const line = (body || '').split(/\r?\n/).find((l) => /^\s*\*\*Blocked by:\*\*/i.test(l));
+              if (!line) return [];
+              return [...line.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+            }
+
+            async function nativeBlockers(number) {
+              try {
+                const res = await github.request(
+                  'GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by',
+                  { owner, repo, issue_number: number, per_page: 100 });
+                return res.data.map((i) => i.number);
+              } catch (e) {
+                core.info(`#${number}: dependency API unavailable (${e.status}); using the issue body only`);
+                return [];
+              }
+            }
+
+            const linked = new Set();
+            const query = `query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) { closingIssuesReferences(first: 50) { nodes { number } } }
+              }
+            }`;
+            const result = await github.graphql(query, { owner, repo, number: pr.number });
+            result.repository.pullRequest.closingIssuesReferences.nodes.forEach((n) => linked.add(n.number));
+            const keyword = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)/gi;
+            for (const m of (pr.body || '').matchAll(keyword)) linked.add(Number(m[1]));
+
+            if (!linked.size) {
+              core.warning('This pull request does not close any issue. Add "Closes #<issue-number>" to the description.');
+              return;
+            }
+
+            const problems = [];
+            for (const n of linked) {
+              let issue;
+              try {
+                ({ data: issue } = await github.rest.issues.get({ owner, repo, issue_number: n }));
+              } catch (e) {
+                problems.push(`#${n} cannot be read (${e.status})`);
+                continue;
+              }
+              if (issue.pull_request) continue;
+
+              const blockers = new Set([...bodyBlockers(issue.body), ...(await nativeBlockers(n))]);
+              blockers.delete(n);
+              const open = [];
+              for (const b of blockers) {
+                try {
+                  const { data: bi } = await github.rest.issues.get({ owner, repo, issue_number: b });
+                  if (!isDone(bi)) open.push(`#${b}`);
+                } catch (e) {
+                  open.push(`#${b} (unreadable)`);
+                }
+              }
+              if (open.length) problems.push(`#${n} is still blocked by ${open.join(', ')}`);
+              else core.info(`#${n}: all dependencies are closed`);
+            }
+
+            if (problems.length) {
+              core.setFailed(`Dependency lock: ${problems.join('; ')}. Close the blocking issues first.`);
+            }

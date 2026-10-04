@@ -1,0 +1,137 @@
+name: issue-dependency-lock
+
+# Keeps an issue locked while any issue it depends on is still open.
+#
+# Dependencies are read from GitHub's "Blocked by" relationships and from the
+# "**Blocked by:** #n, #m" line in the issue body. A blocker counts as fulfilled only
+# when it is closed as completed (not "not planned" or "duplicate").
+#
+# Blocked issues get the `status:blocked` label and a locked conversation. When the
+# last blocker closes, the issue is unlocked and relabelled `status:ready`. Reopening
+# a blocker locks its dependents again. Run the workflow manually to re-sync all issues.
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: issue-dependency-lock
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync dependency locks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const BLOCKED = 'status:blocked';
+            const READY = 'status:ready';
+
+            const labelNames = (issue) => issue.labels.map((l) => (typeof l === 'string' ? l : l.name));
+            const isDone = (i) => i.state === 'closed' && (i.state_reason === 'completed' || i.state_reason == null);
+
+            function bodyBlockers(body) {
+              const line = (body || '').split(/\r?\n/).find((l) => /^\s*\*\*Blocked by:\*\*/i.test(l));
+              if (!line) return [];
+              return [...line.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+            }
+
+            async function nativeRelations(number, kind) {
+              try {
+                const res = await github.request(
+                  `GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/${kind}`,
+                  { owner, repo, issue_number: number, per_page: 100 });
+                return res.data.map((i) => i.number);
+              } catch (e) {
+                core.info(`#${number}: dependency API unavailable (${e.status}); using the issue body only`);
+                return [];
+              }
+            }
+
+            async function blockersOf(issue) {
+              const set = new Set([...bodyBlockers(issue.body), ...(await nativeRelations(issue.number, 'blocked_by'))]);
+              set.delete(issue.number);
+              return [...set].sort((a, b) => a - b);
+            }
+
+            async function sync(number) {
+              const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: number });
+              if (issue.pull_request || issue.state !== 'open') return;
+
+              const blockers = await blockersOf(issue);
+              const open = [];
+              for (const b of blockers) {
+                try {
+                  const { data: bi } = await github.rest.issues.get({ owner, repo, issue_number: b });
+                  if (!isDone(bi)) open.push(b);
+                } catch (e) {
+                  core.warning(`#${number}: cannot read blocker #${b} (${e.status}); treating it as open`);
+                  open.push(b);
+                }
+              }
+
+              const labels = labelNames(issue);
+              if (open.length) {
+                if (!labels.includes(BLOCKED)) {
+                  await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: [BLOCKED] });
+                  if (labels.includes(READY)) {
+                    await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: READY });
+                  }
+                  await github.rest.issues.createComment({
+                    owner, repo, issue_number: number,
+                    body: `🔒 Locked: waiting on ${open.map((n) => '#' + n).join(', ')}. ` +
+                          'This issue unlocks automatically when they are closed as completed.',
+                  });
+                }
+                if (!issue.locked) await github.rest.issues.lock({ owner, repo, issue_number: number });
+                core.info(`#${number}: blocked by ${open.join(', ')}`);
+                return;
+              }
+
+              if (labels.includes(BLOCKED)) {
+                if (issue.locked) await github.rest.issues.unlock({ owner, repo, issue_number: number });
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: BLOCKED });
+                if (!labels.includes(READY)) {
+                  await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: [READY] });
+                }
+                const list = blockers.length ? ` (${blockers.map((n) => '#' + n).join(', ')})` : '';
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: number,
+                  body: `🔓 Unlocked: all dependencies are closed${list}. This issue is ready to start.`,
+                });
+                core.info(`#${number}: unlocked`);
+              } else if (!labels.includes(READY)) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: [READY] });
+              }
+            }
+
+            async function dependentsOf(number) {
+              const set = new Set(await nativeRelations(number, 'blocking'));
+              const openIssues = await github.paginate(github.rest.issues.listForRepo,
+                { owner, repo, state: 'open', per_page: 100 });
+              for (const i of openIssues) {
+                if (!i.pull_request && bodyBlockers(i.body).includes(number)) set.add(i.number);
+              }
+              return [...set];
+            }
+
+            if (context.eventName === 'workflow_dispatch') {
+              const openIssues = await github.paginate(github.rest.issues.listForRepo,
+                { owner, repo, state: 'open', per_page: 100 });
+              for (const i of openIssues) if (!i.pull_request) await sync(i.number);
+              return;
+            }
+
+            const number = context.payload.issue.number;
+            const action = context.payload.action;
+            if (['opened', 'edited', 'reopened'].includes(action)) await sync(number);
+            if (['closed', 'reopened'].includes(action)) {
+              for (const d of await dependentsOf(number)) await sync(d);
+            }
