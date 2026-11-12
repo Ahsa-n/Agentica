@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+ollama>=0.5
+psutil

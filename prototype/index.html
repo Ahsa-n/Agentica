@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentica</title>
+<link rel="icon" href="data:,">
+<style>
+  @font-face { font-family:"Inter"; src:url(/static/fonts/inter.woff2) format("woff2"); font-weight:100 900; font-display:swap; }
+  @font-face { font-family:"JetBrains Mono"; src:url(/static/fonts/jetbrains-mono.woff2) format("woff2"); font-weight:100 800; font-display:swap; }
+
+  /* color-scheme makes native scrollbars and inputs follow the theme */
+  :root {
+    color-scheme:dark;
+    --bg:#0a0b10; --glow:rgba(99,102,241,.18);
+    --surface:#111319; --surface-2:#181b24; --code-bg:#0c0e13;
+    --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.13);
+    --text:#e8eaf0; --muted:#8a91a5; --faint:#6b7386;
+    --accent:#818cf8; --accent-grad:linear-gradient(135deg,#6366f1,#8b5cf6);
+    --user:rgba(99,102,241,.14); --user-border:rgba(129,140,248,.24);
+    --danger:#f87171; --danger-bg:rgba(248,113,113,.08);
+    --ring:rgba(129,140,248,.28);
+    --shadow:0 12px 32px -12px rgba(0,0,0,.65);
+  }
+  @media (prefers-color-scheme: light) { :root {
+    color-scheme:light;
+    --bg:#f7f8fb; --glow:rgba(99,102,241,.12);
+    --surface:#fff; --surface-2:#f2f4f8; --code-bg:#f6f7fa;
+    --border:rgba(15,23,42,.08); --border-strong:rgba(15,23,42,.14);
+    --text:#0f172a; --muted:#5b6478; --faint:#7f8aa0;
+    --accent:#4f46e5;
+    --user:#eef0ff; --user-border:#dde1ff;
+    --danger:#dc2626; --danger-bg:#fef2f2;
+    --ring:rgba(79,70,229,.18);
+    --shadow:0 12px 32px -14px rgba(15,23,42,.2);
+  } }
+
+  * { box-sizing:border-box; }
+  body { margin:0; height:100vh; height:100dvh; display:flex; flex-direction:column; color:var(--text);
+    background:radial-gradient(900px 420px at 50% -140px, var(--glow), transparent 70%) no-repeat, var(--bg);
+    font:15px/1.65 Inter, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font-family:inherit; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px; border-bottom:1px solid var(--border); }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand b { display:block; font-size:15px; font-weight:600; letter-spacing:-.01em; line-height:1.25; }
+  .brand small { display:block; font-size:12px; color:var(--muted); line-height:1.25; }
+  .logo, .avatar { flex:none; display:grid; place-items:center; color:#fff; background:var(--accent-grad); }
+  .logo { width:32px; height:32px; border-radius:10px; box-shadow:0 6px 16px -6px rgba(99,102,241,.7); }
+  .logo svg { width:18px; height:18px; }
+  .ghost { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border:1px solid var(--border-strong); border-radius:10px;
+    background:transparent; color:var(--text); font-size:13px; font-weight:500; cursor:pointer; transition:background .15s; }
+  .ghost:hover { background:var(--surface-2); }
+  .ghost svg { width:15px; height:15px; }
+
+  #log { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
+  .thread { max-width:780px; margin:0 auto; padding:28px 20px 16px; display:flex; flex-direction:column; gap:24px; }
+
+  #welcome { text-align:center; padding-top:8vh; }
+  #welcome .logo { width:52px; height:52px; border-radius:16px; margin:0 auto 20px; }
+  #welcome .logo svg { width:26px; height:26px; }
+  #welcome h1 { margin:0; font-size:27px; font-weight:600; letter-spacing:-.025em; }
+  #welcome p { margin:8px auto 30px; max-width:470px; color:var(--muted); }
+  .chips { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; text-align:left; }
+  .chip { padding:13px 15px; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--text);
+    font-size:14px; font-weight:500; text-align:left; cursor:pointer; transition:border-color .15s, background .15s, transform .15s; }
+  .chip span { display:block; margin-top:2px; font-size:12.5px; font-weight:400; color:var(--muted); }
+  .chip:hover { border-color:var(--border-strong); background:var(--surface-2); transform:translateY(-1px); }
+
+  .msg { min-width:0; overflow-wrap:anywhere; }
+  .user { align-self:flex-end; max-width:80%; padding:10px 16px; border-radius:18px 18px 6px 18px;
+    background:var(--user); border:1px solid var(--user-border); white-space:pre-wrap; }
+  .turn { display:flex; gap:14px; align-items:flex-start; }
+  .avatar { width:28px; height:28px; border-radius:9px; margin-top:1px; }
+  .avatar svg { width:15px; height:15px; }
+  .assistant { flex:1; padding-top:2px; white-space:pre-wrap; }
+  .assistant.error { padding:10px 14px; border-radius:12px; color:var(--danger); background:var(--danger-bg);
+    border:1px solid color-mix(in srgb, var(--danger) 30%, transparent); }
+
+  .typing { display:inline-flex; gap:5px; padding:9px 0; }
+  .typing i { width:6px; height:6px; border-radius:50%; background:var(--muted); animation:blink 1.2s infinite ease-in-out; }
+  .typing i:nth-child(2) { animation-delay:.15s; }
+  .typing i:nth-child(3) { animation-delay:.3s; }
+  @keyframes blink { 0%, 80%, 100% { opacity:.25; transform:none; } 40% { opacity:1; transform:translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .typing i { animation:none; opacity:.6; } .chip:hover { transform:none; } }
+
+  /* Replies rendered from Markdown */
+  .md { white-space:normal; }
+  .md > :first-child { margin-top:0; }
+  .md > :last-child { margin-bottom:0; }
+  .md :is(p, ul, ol, table, blockquote, .codeblock) { margin:0 0 .85em; }
+  .md :is(h1, h2, h3, h4) { margin:1.3em 0 .5em; line-height:1.3; font-weight:600; letter-spacing:-.01em; }
+  .md h1 { font-size:1.3em; } .md h2 { font-size:1.15em; } .md :is(h3, h4) { font-size:1.02em; }
+  .md :is(ul, ol) { padding-left:1.35em; }
+  .md li { margin:.3em 0; }
+  .md li::marker { color:var(--faint); }
+  .md strong { font-weight:600; }
+  .md a { color:var(--accent); text-decoration:none; border-bottom:1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  .md code { font:.86em/1.6 "JetBrains Mono", Consolas, monospace; background:var(--surface-2); border:1px solid var(--border); padding:.1em .38em; border-radius:6px; }
+  .codeblock { border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--code-bg); }
+  .codehead { display:flex; align-items:center; justify-content:space-between; padding:5px 6px 5px 14px; border-bottom:1px solid var(--border);
+    background:var(--surface); font:12px/1 "JetBrains Mono", Consolas, monospace; color:var(--muted); }
+  .copy { padding:6px 9px; border:0; border-radius:7px; background:transparent; color:var(--muted); font-size:12px; font-weight:500; cursor:pointer; }
+  .copy:hover { color:var(--text); background:var(--surface-2); }
+  .md pre { margin:0; padding:13px 15px; overflow-x:auto; scrollbar-width:thin; }
+  .md pre code { background:none; border:0; padding:0; font-size:.84em; }
+  .md table { display:block; width:fit-content; max-width:100%; overflow-x:auto; border-collapse:separate; border-spacing:0;
+    border:1px solid var(--border); border-radius:12px; font-variant-numeric:tabular-nums; }
+  .md :is(th, td) { padding:8px 14px; text-align:left; vertical-align:top; border-bottom:1px solid var(--border); overflow-wrap:break-word; }
+  .md :is(td, th) + :is(td, th) { border-left:1px solid var(--border); }
+  .md tr:last-child td { border-bottom:0; }
+  .md th { background:var(--surface-2); font-size:.88em; font-weight:600; color:var(--muted); }
+  .md blockquote { margin-left:0; padding:2px 0 2px 14px; border-left:3px solid var(--accent); color:var(--muted); }
+  .md hr { border:0; border-top:1px solid var(--border); margin:1.4em 0; }
+
+  form { padding:6px 20px 16px; }
+  .box { max-width:780px; margin:0 auto; display:flex; align-items:flex-end; gap:8px; padding:8px 8px 8px 16px;
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:18px; box-shadow:var(--shadow); transition:border-color .15s, box-shadow .15s; }
+  .box:focus-within { border-color:color-mix(in srgb, var(--accent) 55%, transparent); box-shadow:var(--shadow), 0 0 0 4px var(--ring); }
+  textarea { flex:1; max-height:200px; padding:7px 0; resize:none; border:0; outline:0; background:transparent; color:var(--text); font:inherit; }
+  textarea::placeholder { color:var(--faint); }
+  #send { flex:none; width:38px; height:38px; display:grid; place-items:center; border:0; border-radius:12px;
+    background:var(--accent-grad); color:#fff; cursor:pointer; transition:opacity .15s, transform .15s; }
+  #send svg { width:18px; height:18px; }
+  #send:hover:not(:disabled) { transform:translateY(-1px); }
+  #send:disabled, textarea:placeholder-shown + #send { opacity:.4; }
+  #send:disabled { cursor:default; }
+  .hint { max-width:780px; margin:8px auto 0; text-align:center; font-size:12px; color:var(--muted); }
+
+  @media (max-width:600px) {
+    header, .thread, form { padding-left:16px; padding-right:16px; }
+    .chips { grid-template-columns:1fr; }
+    .turn { gap:10px; }
+    .user { max-width:90%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>
+    <div><b>Agentica</b><small>IT Operations Agent</small></div>
+  </div>
+  <button id="new" class="ghost" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
+</header>
+<main id="log">
+  <div class="thread" id="thread">
+    <section id="welcome">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+      <h1>How can I help today?</h1>
+      <p>Ask about this machine's health (CPU, memory, disks, GPU and event logs) or any IT question.</p>
+      <div class="chips">
+        <button class="chip" type="button" data-prompt="How is my PC doing?">Check system health<span>CPU, memory, disks and GPU</span></button>
+        <button class="chip" type="button" data-prompt="Any errors in the event log in the last 24 hours?">Review recent errors<span>Windows Event Log, last 24 hours</span></button>
+        <button class="chip" type="button" data-prompt="What's using the most RAM right now?">Find resource hogs<span>Processes using the most memory</span></button>
+        <button class="chip" type="button" data-prompt="Write a PowerShell script that lists stopped automatic services.">Write a script<span>PowerShell: list stopped services</span></button>
+      </div>
+    </section>
+  </div>
+</main>
+<form id="form">
+  <div class="box">
+    <textarea id="input" rows="1" placeholder="Ask Agentica about your systems…" autofocus></textarea>
+    <button id="send" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+  </div>
+  <p class="hint">Enter to send · Shift+Enter for a new line · Monitoring tools are read-only</p>
+</form>
+<script src="/static/marked.umd.js"></script>
+<script src="/static/purify.min.js"></script>
+<script>
+const log = document.getElementById('log'), thread = document.getElementById('thread'), welcome = document.getElementById('welcome');
+const form = document.getElementById('form'), input = document.getElementById('input'), send = document.getElementById('send');
+const AVATAR = document.querySelector('header .logo').innerHTML;
+const messages = [];
+
+// Replies are Markdown. Sanitize the HTML since replies can quote event-log text and process names.
+// If the libraries failed to load, fall back to plain text.
+const canRender = window.marked && window.DOMPurify;
+if (canRender) marked.use({ breaks: true });
+
+function render(el, md) {
+  if (!canRender) { el.textContent = md; return; }
+  el.classList.add('md');
+  el.innerHTML = DOMPurify.sanitize(marked.parse(md));
+  // Give code blocks a header with the language and a copy button
+  for (const pre of el.querySelectorAll('pre')) {
+    const block = document.createElement('div');
+    block.className = 'codeblock';
+    block.innerHTML = '<div class="codehead"><span></span><button type="button" class="copy">Copy</button></div>';
+    block.querySelector('span').textContent = pre.querySelector('code')?.className.match(/language-([\w-]+)/)?.[1] ?? 'code';
+    pre.replaceWith(block);
+    block.append(pre);
+  }
+}
+
+function addUser(text) {
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.textContent = text;
+  thread.append(el);
+}
+
+function addAssistant() {
+  const turn = document.createElement('div');
+  turn.className = 'turn';
+  turn.innerHTML = `<div class="avatar">${AVATAR}</div><div class="msg assistant"><span class="typing"><i></i><i></i><i></i></span></div>`;
+  thread.append(turn);
+  return turn.lastElementChild;
+}
+
+const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; };
+input.addEventListener('input', grow);
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+
+// Delegated so it survives the re-renders while a reply streams in
+thread.addEventListener('click', e => {
+  const copy = e.target.closest('.copy');
+  if (copy) {
+    navigator.clipboard.writeText(copy.closest('.codeblock').querySelector('pre').textContent).then(() => {
+      copy.textContent = 'Copied';
+      setTimeout(() => (copy.textContent = 'Copy'), 1500);
+    });
+  }
+  const chip = e.target.closest('.chip');
+  if (chip) { input.value = chip.dataset.prompt; form.requestSubmit(); }
+});
+
+document.getElementById('new').addEventListener('click', () => {
+  if (send.disabled) return;
+  messages.length = 0;
+  thread.replaceChildren(welcome);
+  welcome.hidden = false;
+  input.focus();
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text || send.disabled) return;
+  input.value = '';
+  grow();
+  send.disabled = true;
+  welcome.hidden = true;
+  messages.push({ role: 'user', content: text });
+  addUser(text);
+  const el = addAssistant();
+  log.scrollTop = log.scrollHeight;
+  let reply = '', frame = 0;
+  // Re-parse at most once per animation frame instead of on every streamed token
+  const draw = () => { frame = 0; render(el, reply); log.scrollTop = log.scrollHeight; };
+  try {
+    const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages }) });
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      reply += value;
+      frame ||= requestAnimationFrame(draw);
+    }
+    cancelAnimationFrame(frame);
+    draw();
+    messages.push({ role: 'assistant', content: reply });
+  } catch (err) {
+    cancelAnimationFrame(frame);
+    el.classList.remove('md');
+    el.classList.add('error');
+    el.textContent = 'Error: ' + err.message;
+    messages.pop();
+  }
+  send.disabled = false;
+  input.focus();
+});
+</script>
+</body>
+</html>
