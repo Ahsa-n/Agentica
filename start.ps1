@@ -24,7 +24,7 @@ $env:TEMP = "D:\Temp\tmp"; $env:TMP = "D:\Temp\tmp"
 # 3. Start backend (background)
 Write-Host "Starting backend..." -ForegroundColor Yellow
 $backend = Start-Process -FilePath "$venv\python.exe" `
-    -ArgumentList "-m", "uvicorn", "agentica.main:app", "--host", "127.0.0.1", "--port", "8765" `
+    -ArgumentList "$root\backend\run.py", "--host", "127.0.0.1", "--port", "8765" `
     -WorkingDirectory "$root\backend" `
     -PassThru -WindowStyle Minimized
 Write-Host "Backend PID: $($backend.Id)"

@@ -12,9 +12,10 @@ import yaml
 from platformdirs import user_config_dir
 from pydantic import BaseModel, field_validator, model_validator
 
-# Pattern that must NOT appear in config values (looks like a secret)
+# Matches config keys that look like secrets — requires word-part boundaries
+# (underscore or string start/end) so "chunk_size_tokens" is not flagged.
 _SECRET_PATTERN = re.compile(
-    r"(password|secret|token|key|credential|private|passwd)",
+    r"(?:^|_)(?:password|secret|token|key|credential|private|passwd)(?:_|$)",
     re.IGNORECASE,
 )
 

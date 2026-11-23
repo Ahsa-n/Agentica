@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import secrets
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# psycopg3 async requires SelectorEventLoop on Windows (ProactorEventLoop is the default)
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware

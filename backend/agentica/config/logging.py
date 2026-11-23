@@ -20,6 +20,12 @@ def _redact_processor(
 
 
 def configure_logging(level: str = "INFO") -> None:
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    logging.basicConfig(
+        format="%(message)s",
+        level=log_level,
+        stream=sys.stdout,
+    )
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -32,12 +38,8 @@ def configure_logging(level: str = "INFO") -> None:
         ],
         wrapper_class=structlog.BoundLogger,
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(sys.stdout),
-    )
-    logging.basicConfig(
-        format="%(message)s",
-        level=getattr(logging, level.upper(), logging.INFO),
-        stream=sys.stdout,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
     )
 
 

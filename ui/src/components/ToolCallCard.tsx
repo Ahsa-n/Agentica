@@ -60,7 +60,7 @@ export default function ToolCallCard({ toolCall }: { toolCall: ToolCallState }) 
               {toolCall.rule_id && <span style={{ color: '#555', marginLeft: 8 }}>[{toolCall.rule_id}]</span>}
             </div>
           )}
-          {toolCall.result && (
+          {toolCall.result != null && (
             <div>
               <span style={{ color: '#888' }}>Result:</span>
               <pre style={{

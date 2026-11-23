@@ -20,11 +20,16 @@ def get_embedding_model():
     cfg = get_settings()
     model_path = cfg.rag.embedding_model_path or MODEL_ID
 
-    # In local mode, force offline
+    # In local mode, force offline only after the model is already cached
     if cfg.llm.mode == "local":
         import os
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+        from pathlib import Path
+        hf_home = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
+        model_slug = MODEL_ID.replace("/", "--")
+        cached = (hf_home / "hub" / f"models--{model_slug}").exists()
+        if cached:
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
     logger.info("loading_embedding_model", path=model_path)
     model = SentenceTransformer(model_path)
