@@ -1,0 +1,34 @@
+name: CI Windows
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend (without psycopg binary on Windows CI)
+        run: |
+          cd backend
+          pip install -e ".[dev]" --no-deps
+          pip install fastapi uvicorn pydantic pydantic-settings langgraph langchain-core langchain-ollama psutil keyring platformdirs pyyaml structlog python-multipart httpx tiktoken watchdog beautifulsoup4 lxml pypdf python-docx sentence-transformers pytest pytest-asyncio pytest-cov ruff anyio
+
+      - name: Lint
+        run: cd backend && ruff check agentica tests
+
+      - name: Run unit tests (no DB)
+        run: |
+          cd backend
+          pytest tests/unit -v -k "not integration"

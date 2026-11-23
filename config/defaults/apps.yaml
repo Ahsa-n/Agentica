@@ -1,0 +1,14 @@
+# Application health definitions
+apps: []
+# Example:
+# apps:
+#   - id: nginx
+#     display_name: "Nginx Web Server"
+#     process_name: "nginx"
+#     service_name: "nginx"
+#     tcp_port: 80
+#     http_check: "http://localhost:80/"
+#   - id: postgresql
+#     display_name: "PostgreSQL"
+#     service_name: "postgresql"
+#     tcp_port: 5432

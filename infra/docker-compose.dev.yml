@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: agentica-postgres
+    environment:
+      POSTGRES_DB: agentica
+      POSTGRES_USER: agentica
+      POSTGRES_PASSWORD: agentica
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentica -d agentica"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  linux-target:
+    image: ubuntu:22.04
+    container_name: agentica-linux-target
+    command: >
+      bash -c "
+        apt-get update -qq &&
+        apt-get install -y -qq openssh-server nginx &&
+        mkdir -p /run/sshd &&
+        echo 'root:test1234' | chpasswd &&
+        sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config &&
+        sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
+        service nginx start &&
+        exec /usr/sbin/sshd -D
+      "
+    ports:
+      - "127.0.0.1:2222:22"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

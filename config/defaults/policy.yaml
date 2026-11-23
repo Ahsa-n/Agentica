@@ -1,0 +1,35 @@
+# Policy engine configuration
+# Default risk-tier decisions:
+#   read        → allow
+#   modify      → confirm
+#   destructive → confirm
+#   unknown     → deny
+#   hardline    → deny (CANNOT be overridden)
+
+hardline_blocklist:
+  # Always Deny — cannot be overridden by any config
+  patterns:
+    - "rm\\s+-[a-zA-Z]*r[a-zA-Z]*f\\s+/"  # rm -rf /
+    - "mkfs"
+    - "dd\\s+.*of=/dev/"
+    - ":\\(\\)\\{.*\\}.*:"                  # fork bomb
+    - "chmod\\s+-[a-zA-Z]*R[a-zA-Z]*\\s+777\\s+/"
+    - "Format-Volume"
+    - "diskpart.*clean"
+    - "vssadmin.*delete.*shadows"
+    - "powershell.*-[eE]nco"               # encoded PowerShell
+    - "\\|\\s*(bash|sh|cmd|powershell)"    # download-and-run pipes
+
+protected_resources:
+  services:
+    - "sshd"
+    - "ssh"
+    - "WinRM"
+    - "agentica"
+    - "postgresql"
+
+# Per-tool overrides (most specific wins)
+tool_overrides: {}
+
+# Per-target overrides  key = target glob, value = {tool: decision}
+target_overrides: {}

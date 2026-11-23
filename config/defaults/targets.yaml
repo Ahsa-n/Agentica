@@ -1,0 +1,16 @@
+# Managed targets — edited by user, never contains secrets (those go in keyring)
+targets: []
+# Example:
+# targets:
+#   - id: "linux-server-1"
+#     type: ssh
+#     host: "192.168.1.10"
+#     port: 22
+#     user: "agentica"
+#     trusted_fingerprint: null   # set after first Trust action
+#   - id: "win-server-1"
+#     type: winrm
+#     host: "192.168.1.20"
+#     port: 5986
+#     user: "Administrator"
+#     trusted_thumbprint: null

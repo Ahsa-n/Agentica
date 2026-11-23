@@ -1,0 +1,56 @@
+tasks:
+  - id: K01
+    prompt: "How do I handle a stopped service?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "stopped service procedure"}
+    confirm_expected: false
+    success_check: "results in result and found == true"
+
+  - id: K02
+    prompt: "What should I do when the disk is full?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "full disk procedure"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K03
+    prompt: "How do I restart nginx properly?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "nginx restart procedure"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K04
+    prompt: "What are the steps for handling high memory usage?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "high memory usage procedure"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K05
+    prompt: "How do I restart IIS on Windows?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "IIS restart Windows"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K06
+    prompt: "What is the memory alert threshold?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "memory alert threshold"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K07
+    prompt: "Show me the disk cleanup SOP"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "disk cleanup SOP"}
+    confirm_expected: false
+    success_check: "results in result"
+
+  - id: K08
+    prompt: "What is the escalation procedure?"
+    gold_tool: search_knowledge_base
+    gold_args: {query: "escalation procedure"}
+    confirm_expected: false
+    success_check: "results in result"
