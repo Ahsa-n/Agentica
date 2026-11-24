@@ -52,7 +52,7 @@ class LLMConfig(BaseModel):
     cloud_model: str | None = None
 
     @model_validator(mode="after")
-    def cloud_needs_provider(self) -> "LLMConfig":
+    def cloud_needs_provider(self) -> LLMConfig:
         if self.mode == "cloud" and not self.cloud_provider:
             raise ValueError("cloud_provider required when mode=cloud")
         return self

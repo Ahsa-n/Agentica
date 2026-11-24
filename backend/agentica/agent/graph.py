@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 import time
 import uuid
-from functools import lru_cache
-from typing import Any, AsyncIterator, Literal
+from typing import Any, Literal
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
 from langgraph.types import Command, interrupt
@@ -19,7 +18,7 @@ from agentica.agent.state import AgentState, RunConfig, ToolCall
 from agentica.config.logging import get_logger
 from agentica.db.engine import get_dsn
 from agentica.policy.engine import Decision, PolicyEngine
-from agentica.policy.guardrails import GuardrailDecision, analyse_command, wrap_as_data
+from agentica.policy.guardrails import wrap_as_data
 from agentica.tools.base import RiskTier
 from agentica.tools.registry import registry
 
@@ -363,7 +362,6 @@ async def node_execute(state: AgentState) -> dict:
 
 def _get_input_class(tool):
     """Extract the input model class from a tool's generic parameters."""
-    import inspect
     for base in getattr(tool.__class__, "__orig_bases__", []):
         args = getattr(base, "__args__", None)
         if args and len(args) >= 1:
@@ -413,7 +411,6 @@ async def node_report(state: AgentState) -> dict:
     tc = state.pending_tool_call
     if tc and tc.error:
         # Return to agent loop with error context added
-        from langchain_core.messages import SystemMessage
         err_msg = ToolMessage(
             content=json.dumps({"error": tc.error}),
             tool_call_id=tc.call_id,
@@ -554,8 +551,8 @@ def run_config_for(session_id: str) -> dict:
 async def get_graph():
     global _graph_instance
     if _graph_instance is None:
-        from psycopg_pool import AsyncConnectionPool
         from psycopg.rows import dict_row
+        from psycopg_pool import AsyncConnectionPool
 
         sqla_dsn = get_dsn(async_=True)
         # AsyncConnectionPool needs a native libpq DSN, not SQLAlchemy's postgresql+psycopg:// prefix

@@ -12,8 +12,15 @@ from typing import Any
 
 from agentica.tools.base import BaseTarget
 from agentica.tools.local.monitoring import (
-    CPUResult, DiskPartition, DiskResult, MemoryResult, NetworkInterface,
-    NetworkResult, ProcessInfo, ProcessListResult, SystemOverviewResult,
+    CPUResult,
+    DiskPartition,
+    DiskResult,
+    MemoryResult,
+    NetworkInterface,
+    NetworkResult,
+    ProcessInfo,
+    ProcessListResult,
+    SystemOverviewResult,
 )
 from agentica.tools.remote.winrm_target import ps_quote
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from agentica.config.loader import get_settings
 from agentica.config.logging import get_logger
 from agentica.tools.local.knowledge_tool import KBChunkResult
@@ -19,8 +17,8 @@ def _rrf_score(rank: int, k: int = RRF_K) -> float:
 
 async def hybrid_search(query: str, top_k: int = 5) -> list[KBChunkResult]:
     """Hybrid search combining dense and keyword retrieval with RRF."""
-    from agentica.rag.embed import embed_query
     from agentica.db.engine import get_session_factory
+    from agentica.rag.embed import embed_query
 
     cfg = get_settings().rag
     threshold = cfg.similarity_threshold

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agentica.rag.extract import extract_text, ExtractionError
+from agentica.rag.extract import ExtractionError, extract_text
 
 
 def test_extract_txt():

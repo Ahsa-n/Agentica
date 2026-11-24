@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from agentica.policy.guardrails import (
-    GuardrailDecision, analyse_command, check_prompt_injection
-)
-
+from agentica.policy.guardrails import GuardrailDecision, analyse_command, check_prompt_injection
 
 # ─── DENY cases ───────────────────────────────────────────────────────────────
 

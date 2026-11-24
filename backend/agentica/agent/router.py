@@ -8,11 +8,12 @@ Stage 2: select top category + any within a margin (up to 3 total).
 
 from __future__ import annotations
 
-import numpy as np
 from pathlib import Path
 from typing import NamedTuple
 
+import numpy as np
 import yaml
+
 from agentica.config.logging import get_logger
 from agentica.tools.base import ToolCategory
 
@@ -43,6 +44,7 @@ class EmbeddingRouter:
         if self._loaded:
             return
         from sentence_transformers import SentenceTransformer
+
         from agentica.config.loader import get_settings
         cfg = get_settings().rag
         model_path = cfg.embedding_model_path or "intfloat/multilingual-e5-base"

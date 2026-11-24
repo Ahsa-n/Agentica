@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import abc
-import copy
-import json
 from enum import Enum
 from typing import Any, ClassVar, Generic, TypeVar
 
@@ -104,12 +102,12 @@ class ToolRegistry:
     """Central registry for all tools."""
 
     def __init__(self) -> None:
-        self._tools: dict[str, "BaseTool"] = {}
+        self._tools: dict[str, BaseTool] = {}
 
-    def register(self, tool: "BaseTool") -> None:
+    def register(self, tool: BaseTool) -> None:
         self._tools[tool.spec.name] = tool
 
-    def get(self, name: str) -> "BaseTool | None":
+    def get(self, name: str) -> BaseTool | None:
         return self._tools.get(name)
 
     def __contains__(self, name: str) -> bool:
@@ -133,10 +131,10 @@ class BaseTool(abc.ABC, Generic[InputT, OutputT]):
     spec: ClassVar[ToolSpec]
 
     @abc.abstractmethod
-    async def run(self, args: InputT, target: "BaseTarget | None" = None) -> OutputT:
+    async def run(self, args: InputT, target: BaseTarget | None = None) -> OutputT:
         """Execute the tool and return structured output. Never raises."""
 
-    async def verify(self, args: InputT, result: OutputT, target: "BaseTarget | None" = None) -> bool:
+    async def verify(self, args: InputT, result: OutputT, target: BaseTarget | None = None) -> bool:
         """Optional post-execution verification for modify/destructive tools."""
         return True
 

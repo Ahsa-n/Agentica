@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import patch
 
 from agentica.policy.engine import Decision, PolicyEngine, PolicyResult
-from agentica.tools.base import RiskTier, ToolCategory, ToolSpec
 from agentica.tools.registry import registry
-
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +120,7 @@ def test_target_override_no_match():
 # ─── 7. Most restrictive wins ─────────────────────────────────────────────────
 
 def test_most_restrictive_wins_deny_over_allow():
-    from agentica.policy.engine import _most_restrictive, PolicyResult
+    from agentica.policy.engine import _most_restrictive
     a = PolicyResult(decision=Decision.ALLOW, rule_id="a", reason="a")
     d = PolicyResult(decision=Decision.DENY, rule_id="d", reason="d")
     assert _most_restrictive(a, d).decision == Decision.DENY
@@ -131,7 +128,7 @@ def test_most_restrictive_wins_deny_over_allow():
 
 
 def test_most_restrictive_wins_deny_over_confirm():
-    from agentica.policy.engine import _most_restrictive, PolicyResult
+    from agentica.policy.engine import _most_restrictive
     c = PolicyResult(decision=Decision.CONFIRM, rule_id="c", reason="c")
     d = PolicyResult(decision=Decision.DENY, rule_id="d", reason="d")
     assert _most_restrictive(c, d).decision == Decision.DENY
@@ -156,7 +153,7 @@ def test_no_direct_os_access():
 async def test_execute_node_refuses_without_policy():
     """node_execute must refuse if policy_decision is None."""
     from agentica.agent.graph import node_execute
-    from agentica.agent.state import AgentState, ToolCall, RunConfig
+    from agentica.agent.state import AgentState, RunConfig, ToolCall
 
     state = AgentState(
         run_config=RunConfig(session_id="test"),
@@ -168,10 +165,9 @@ async def test_execute_node_refuses_without_policy():
     # node_execute should guard against missing policy_decision
     # by checking the ToolCall — if policy_decision is None, treat as deny
     # For this test, we patch the execute node to verify behavior
-    result = await node_execute(state)
+    await node_execute(state)
     # With policy_decision=None, it should either skip or error
     # depending on implementation — both are acceptable (never executes)
-    tc = result.get("pending_tool_call", state.pending_tool_call)
     # The key invariant: execution without a policy decision must be refused
     # We rely on the graph routing (policy → execute) to enforce this
     # This test verifies the state model is correct

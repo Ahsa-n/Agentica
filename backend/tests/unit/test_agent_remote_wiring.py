@@ -94,6 +94,7 @@ class _ToolCallingLLM:
 ])
 async def test_agent_only_targets_machines_the_user_named(monkeypatch, user_text, llm_target, expected):
     from langchain_core.messages import HumanMessage
+
     import agentica.agent.graph as graph_mod
 
     args = {"target": llm_target} if llm_target is not None else {}
@@ -109,7 +110,7 @@ async def test_agent_only_targets_machines_the_user_named(monkeypatch, user_text
 @pytest.mark.asyncio
 async def test_monitoring_tool_runs_on_remote_target():
     from agentica.tools.local.monitoring import EmptyInput
-    from agentica.tools.remote.linux import CPU_SCRIPT, _SPLIT
+    from agentica.tools.remote.linux import _SPLIT, CPU_SCRIPT
 
     out = f"cpu 1 0 1 8 0\ncpu0 1 0 1 8 0\n{_SPLIT}\ncpu 2 0 2 16 0\ncpu0 2 0 2 16 0\n{_SPLIT}\n1.0 0.5 0.2 1/2 3\n"
     t = FakeTarget({f"sh -c {CPU_SCRIPT}": (0, out, "")})

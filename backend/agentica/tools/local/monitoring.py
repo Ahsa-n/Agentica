@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
 import psutil
 from pydantic import BaseModel, Field
 
 from agentica.tools.base import (
-    BaseTool, BaseTarget, RiskTier, ToolCategory, ToolResult, ToolSpec,
+    BaseTarget,
+    BaseTool,
+    RiskTier,
+    ToolCategory,
+    ToolSpec,
 )
 from agentica.tools.registry import registry
 from agentica.tools.remote.collectors import backend_for, is_remote
-
 
 # ─── Shared result models ────────────────────────────────────────────────────
 
@@ -122,7 +123,8 @@ class GetSystemOverview(BaseTool[EmptyInput, SystemOverviewResult]):
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> SystemOverviewResult:
         if is_remote(target):
             return await backend_for(target).overview(target)
-        import platform, time
+        import platform
+        import time
         cpu_pct = psutil.cpu_percent(interval=0.5)
         vm = psutil.virtual_memory()
         swap = psutil.swap_memory()

@@ -10,8 +10,8 @@ import ssl
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 
-from agentica.tools.base import BaseTarget
 from agentica.config.logging import get_logger
+from agentica.tools.base import BaseTarget
 
 logger = get_logger(__name__)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from agentica.tools.base import BaseTool, BaseTarget, RiskTier, ToolCategory, ToolSpec
+from agentica.tools.base import BaseTarget, BaseTool, RiskTier, ToolCategory, ToolSpec
 from agentica.tools.registry import registry
 
 

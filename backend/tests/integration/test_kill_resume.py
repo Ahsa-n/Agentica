@@ -91,6 +91,7 @@ def _dsn() -> str:
 async def test_kill_and_resume_executes_exactly_once(patched):
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from langgraph.types import Command
+
     from agentica.agent.state import RunConfig
 
     graph_mod = patched
@@ -134,6 +135,7 @@ async def test_kill_and_resume_executes_exactly_once(patched):
 async def test_denied_after_restart_never_executes(patched):
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from langgraph.types import Command
+
     from agentica.agent.state import RunConfig
 
     graph_mod = patched

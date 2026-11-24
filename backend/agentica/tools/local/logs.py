@@ -8,7 +8,7 @@ import sys
 
 from pydantic import BaseModel, Field, field_validator
 
-from agentica.tools.base import BaseTool, BaseTarget, LocalTarget, RiskTier, ToolCategory, ToolSpec
+from agentica.tools.base import BaseTarget, BaseTool, LocalTarget, RiskTier, ToolCategory, ToolSpec
 from agentica.tools.registry import registry
 from agentica.tools.remote.collectors import backend_for, is_remote
 

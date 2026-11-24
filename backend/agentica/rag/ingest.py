@@ -11,10 +11,10 @@ from sqlalchemy import text as sql_text
 
 from agentica.config.logging import get_logger
 from agentica.db.engine import get_session_factory
-from agentica.db.models import KBDocument, KBChunk
+from agentica.db.models import KBDocument
 from agentica.rag.chunk import chunk_document
 from agentica.rag.embed import embed_texts
-from agentica.rag.extract import extract_text, ExtractionError
+from agentica.rag.extract import ExtractionError, extract_text
 
 logger = get_logger(__name__)
 
@@ -213,8 +213,8 @@ class FolderWatcher:
         self._observer = None
 
     def start(self) -> None:
-        from watchdog.observers import Observer
         from watchdog.events import FileSystemEventHandler
+        from watchdog.observers import Observer
 
         class Handler(FileSystemEventHandler):
             def __init__(self, loop):

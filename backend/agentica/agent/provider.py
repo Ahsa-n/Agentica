@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 from agentica.config.loader import get_settings
 from agentica.config.logging import get_logger
 

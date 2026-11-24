@@ -9,7 +9,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from agentica.tools.base import (
-    BaseTool, BaseTarget, LocalTarget, RiskTier, ToolCategory, ToolResult, ToolSpec,
+    BaseTarget,
+    BaseTool,
+    LocalTarget,
+    RiskTier,
+    ToolCategory,
+    ToolSpec,
 )
 from agentica.tools.registry import registry
 from agentica.tools.remote.collectors import backend_for, is_remote
@@ -199,7 +204,7 @@ async def _do_service_action(name: str, action: str, target: BaseTarget | None =
         return ServiceActionResult(name=name, action=action, success=ok, message=msg)
     if _is_windows():
         try:
-            import win32service, win32serviceutil  # type: ignore
+            import win32serviceutil  # type: ignore
             try:
                 if action == "start":
                     win32serviceutil.StartService(name)

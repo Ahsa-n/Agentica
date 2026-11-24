@@ -1,4 +1,4 @@
-from .base import BaseTool, ToolRegistry, RiskTier, ToolCategory, ToolResult, ToolError
+from .base import BaseTool, RiskTier, ToolCategory, ToolError, ToolRegistry, ToolResult
 from .registry import registry
 
 __all__ = [

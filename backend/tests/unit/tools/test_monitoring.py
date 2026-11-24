@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import pytest
 
+from agentica.tools.base import RiskTier
 from agentica.tools.local.monitoring import (
-    EmptyInput, PidInput, TopProcessesInput,
-    GetSystemOverview, GetCPUUsage, GetMemoryUsage,
-    GetDiskUsage, GetNetworkStats, ListTopProcesses, GetProcessDetails,
+    EmptyInput,
+    GetCPUUsage,
+    GetDiskUsage,
+    GetMemoryUsage,
+    GetNetworkStats,
+    GetProcessDetails,
+    GetSystemOverview,
+    ListTopProcesses,
+    PidInput,
+    TopProcessesInput,
 )
-from agentica.tools.base import FakeTarget, RiskTier
 
 
 @pytest.mark.asyncio

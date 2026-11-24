@@ -13,8 +13,8 @@ from pathlib import Path
 
 import yaml
 
-from agentica.config.secrets import SecretsManager
 from agentica.config.logging import get_logger
+from agentica.config.secrets import SecretsManager
 
 logger = get_logger(__name__)
 

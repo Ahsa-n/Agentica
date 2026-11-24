@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from agentica.rag.chunk import chunk_document, Chunk
-
+from agentica.rag.chunk import chunk_document
 
 SAMPLE_TEXT = """# Getting Started
 

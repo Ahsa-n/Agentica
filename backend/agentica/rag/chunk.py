@@ -41,7 +41,7 @@ def _split_into_sections(text: str) -> list[tuple[str | None, str]]:
 
         level = len(m.group(1))
         title = m.group(2).strip()
-        heading_stack = [(l, h) for l, h in heading_stack if l < level]
+        heading_stack = [(lvl, h) for lvl, h in heading_stack if lvl < level]
         heading_stack.append((level, title))
         last_pos = m.end()
 

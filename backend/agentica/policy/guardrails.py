@@ -14,7 +14,6 @@ import re
 import shlex
 from dataclasses import dataclass
 from enum import Enum
-from typing import NamedTuple
 
 
 class GuardrailDecision(str, Enum):

@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 from agentica.config.logging import get_logger
 from agentica.db.engine import get_session_factory
-from agentica.rag.ingest import ingest_file, ingest_folder, SUPPORTED_EXTENSIONS
+from agentica.rag.ingest import ingest_file, ingest_folder
 from agentica.rag.search import hybrid_search
 
 router = APIRouter()

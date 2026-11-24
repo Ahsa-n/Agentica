@@ -70,7 +70,14 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    # `class X(str, Enum)` is kept on purpose: switching to StrEnum changes str()/format()
+    # of the members, which the SSE/JSON payloads and policy.yaml values rely on.
+    "UP042",
+    # Generic[...] base kept for BaseTool: tools read their input class from __orig_bases__.
+    "UP046",
+]
 
 [tool.coverage.run]
 source = ["agentica"]

@@ -5,15 +5,13 @@ from __future__ import annotations
 import asyncio
 import secrets
 import sys
-import uuid
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 # psycopg3 async requires SelectorEventLoop on Windows (ProactorEventLoop is the default)
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -77,7 +75,7 @@ async def require_auth(
 
 
 # --- Routers (imported after app is created to avoid circular imports) ---
-from agentica.api import sessions, knowledge, machines  # noqa: E402
+from agentica.api import knowledge, machines, sessions  # noqa: E402
 
 app.include_router(sessions.router, prefix="/api", dependencies=[Depends(require_auth)])
 app.include_router(knowledge.router, prefix="/api", dependencies=[Depends(require_auth)])

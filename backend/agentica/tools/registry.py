@@ -9,8 +9,14 @@ registry = ToolRegistry()
 
 def _load_tools() -> None:
     """Import all tool modules so they self-register."""
-    from agentica.tools.local import monitoring, services, apps, network, logs  # noqa: F401
-    from agentica.tools.local import knowledge_tool  # noqa: F401
+    from agentica.tools.local import (  # noqa: F401
+        apps,
+        knowledge_tool,  # noqa: F401
+        logs,
+        monitoring,
+        network,
+        services,
+    )
 
 
 _load_tools()

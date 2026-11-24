@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from agentica.config.egress_guard import is_local_allowed, check_egress
+
+from agentica.config.egress_guard import check_egress, is_local_allowed
 
 
 def test_localhost_allowed():

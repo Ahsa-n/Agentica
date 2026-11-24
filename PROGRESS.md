@@ -112,7 +112,7 @@ Bugs found by testing the running app (each reproduced first, then fixed and re-
 - `expand_scope` tool (Phase 3.6) not implemented; routed mode force-includes monitoring/services/apps when "remote" is routed.
 - Context summarisation for long sessions (Phase 4.4): only the last 20 messages are sent.
 - Model comparison (Phase 10.3) and the 31 `eval/tasks` run in routed vs flat mode have not been executed/recorded.
-- CI workflows exist (`.github/workflows`) but were not run in this pass (no push).
+- **CI (GitHub Actions, Ubuntu + Windows):** the first run, on PR #79 of the team repo, failed at the `ruff check` step: 99 style findings (import order, unused imports, old-style annotations) in code that had never been linted. Fixed (93 automatically, 3 by hand, the enum/Generic modernisation rules deliberately ignored in `pyproject.toml` because `StrEnum` would change how enum members serialise). Lint, 208 unit tests, the 90% policy-coverage gate and the live API suite all pass locally on the fixed code; see the PR for the current CI status.
 - Dev Linux target uses `root / test1234` (compose file, dev only) — never use for real servers; use `infra/linux-target-setup.sh` (key-based `agentica` user, scoped sudoers).
 
 ## Left for FYP-II (per proposal)

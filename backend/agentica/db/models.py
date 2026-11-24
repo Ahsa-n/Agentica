@@ -7,7 +7,6 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    BigInteger,
     DateTime,
     ForeignKey,
     Index,

@@ -67,6 +67,7 @@ def _find_local_snapshot(model_id: str) -> Path | None:
 @lru_cache(maxsize=1)
 def get_embedding_model():
     from sentence_transformers import SentenceTransformer
+
     from agentica.config.loader import get_settings
 
     cfg = get_settings()

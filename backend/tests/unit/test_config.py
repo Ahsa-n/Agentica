@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from agentica.config.secrets import redact
+
 from agentica.config.loader import Settings, _check_no_secrets
+from agentica.config.secrets import redact
 
 
 def test_redact_password_in_text():

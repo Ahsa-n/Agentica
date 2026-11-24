@@ -200,6 +200,7 @@ def test_ssh_target_quotes_every_argv_element(monkeypatch):
 
 def test_ssh_fingerprint_matching_md5_and_sha256():
     import paramiko
+
     from agentica.tools.remote.ssh_target import fingerprint_matches, fingerprints
 
     key = paramiko.Ed25519Key.generate() if hasattr(paramiko.Ed25519Key, "generate") else paramiko.RSAKey.generate(1024)
@@ -212,6 +213,7 @@ def test_ssh_fingerprint_matching_md5_and_sha256():
 
 def test_ssh_target_refuses_untrusted_host():
     import paramiko
+
     from agentica.tools.remote.ssh_target import SSHTarget
 
     with pytest.raises(paramiko.SSHException):

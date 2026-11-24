@@ -12,8 +12,15 @@ import re
 
 from agentica.tools.base import BaseTarget
 from agentica.tools.local.monitoring import (
-    CPUResult, DiskPartition, DiskResult, MemoryResult, NetworkInterface,
-    NetworkResult, ProcessInfo, ProcessListResult, SystemOverviewResult,
+    CPUResult,
+    DiskPartition,
+    DiskResult,
+    MemoryResult,
+    NetworkInterface,
+    NetworkResult,
+    ProcessInfo,
+    ProcessListResult,
+    SystemOverviewResult,
 )
 
 _SPLIT = "__AGENTICA_SPLIT__"
