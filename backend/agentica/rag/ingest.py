@@ -100,7 +100,7 @@ async def ingest_file(path: Path) -> KBDocument:
             await session.execute(
                 sql_text("""
                     INSERT INTO kb_chunks (id, document_id, chunk_index, heading_path, content, token_count, embedding)
-                    VALUES (:id, :doc_id, :idx, :hp, :content, :tc, :emb::vector)
+                    VALUES (:id, :doc_id, :idx, :hp, :content, :tc, CAST(:emb AS vector))
                 """),
                 {
                     "id": str(uuid.uuid4()),
@@ -120,19 +120,74 @@ async def ingest_file(path: Path) -> KBDocument:
         return result
 
 
+def _is_temp(path: Path) -> bool:
+    n = path.name
+    return n.startswith((".", "~", "~$")) or n.endswith(("~", ".tmp", ".swp", ".part", ".crdownload"))
+
+
+def _path_keys(path: Path) -> list[str]:
+    """Every spelling a stored file_path may have (raw, resolved, resolved parent).
+
+    On Windows the same file can be named via a short 8.3 path (PCWORL~1) or the
+    long one ("Pc world"); a deleted file can only be resolved through its parent.
+    """
+    keys = {str(path)}
+    for fn in (lambda: path.resolve(), lambda: path.parent.resolve() / path.name):
+        try:
+            keys.add(str(fn()))
+        except OSError:
+            pass
+    return sorted(keys)
+
+
+async def remove_document_by_path(path: Path) -> bool:
+    """Drop a document (chunks cascade) when its source file is deleted."""
+    from agentica.db.engine import get_session_factory
+    keys = [k.lower() for k in _path_keys(path)]
+    async with get_session_factory()() as session:
+        res = await session.execute(
+            sql_text("DELETE FROM kb_documents WHERE lower(file_path) = ANY(:fps)"), {"fps": keys}
+        )
+        await session.commit()
+    if res.rowcount:
+        logger.info("kb_document_removed", file=str(path))
+    return bool(res.rowcount)
+
+
+async def prune_missing(folder: Path) -> int:
+    """Remove indexed documents under `folder` whose files no longer exist."""
+    from agentica.db.engine import get_session_factory
+    async with get_session_factory()() as session:
+        rows = (await session.execute(sql_text("SELECT file_path FROM kb_documents"))).fetchall()
+    removed = 0
+    root = folder.resolve()
+    for (fp,) in rows:
+        p = Path(fp)
+        try:
+            inside = p.resolve().is_relative_to(root)
+        except OSError:
+            inside = False
+        if inside and not p.exists():
+            removed += await remove_document_by_path(p)
+    return removed
+
+
 async def ingest_folder(folder: Path) -> list[KBDocument]:
-    """Ingest all supported files in a folder."""
+    """Ingest all supported files in a folder and drop documents whose files are gone."""
     docs = []
     for path in sorted(folder.rglob("*")):
         if path.suffix.lower() in SUPPORTED_EXTENSIONS and path.is_file():
-            # Skip temp files
-            if path.name.startswith(".") or path.name.startswith("~"):
+            if _is_temp(path):
                 continue
             try:
                 doc = await ingest_file(path)
                 docs.append(doc)
             except Exception as e:
                 logger.error("kb_ingest_error", file=str(path), error=str(e))
+    try:
+        await prune_missing(folder)
+    except Exception as e:
+        logger.error("kb_prune_error", folder=str(folder), error=str(e))
     return docs
 
 
@@ -153,7 +208,8 @@ class FolderWatcher:
     """Watch a folder for changes and re-index on modifications."""
 
     def __init__(self, folder: Path) -> None:
-        self.folder = folder
+        # Resolved so watchdog reports the same path spelling that ingest stores.
+        self.folder = folder.resolve()
         self._observer = None
 
     def start(self) -> None:
@@ -168,9 +224,7 @@ class FolderWatcher:
 
             def _schedule(self, path: str) -> None:
                 p = Path(path)
-                if p.suffix.lower() not in SUPPORTED_EXTENSIONS:
-                    return
-                if p.name.startswith(".") or p.name.startswith("~"):
+                if p.suffix.lower() not in SUPPORTED_EXTENSIONS or _is_temp(p):
                     return
                 self._pending.add(p)
                 if self._task is None or self._task.done():
@@ -181,7 +235,10 @@ class FolderWatcher:
                 for p in list(self._pending):
                     self._pending.discard(p)
                     try:
-                        await ingest_file(p)
+                        if p.exists():
+                            await ingest_file(p)       # new or changed: replace atomically
+                        else:
+                            await remove_document_by_path(p)  # deleted: clear stale content
                     except Exception as e:
                         logger.error("watcher_ingest_error", file=str(p), error=str(e))
 
@@ -193,7 +250,19 @@ class FolderWatcher:
                 if not event.is_directory:
                     self._schedule(event.src_path)
 
-        loop = asyncio.get_event_loop()
+            def on_deleted(self, event):
+                if not event.is_directory:
+                    self._schedule(event.src_path)
+
+            def on_moved(self, event):
+                if not event.is_directory:
+                    self._schedule(event.src_path)   # old path disappears
+                    self._schedule(event.dest_path)  # new path is indexed
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
         self._observer = Observer()
         self._observer.schedule(Handler(loop), str(self.folder), recursive=True)
         self._observer.start()

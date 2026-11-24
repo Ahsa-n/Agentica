@@ -10,6 +10,7 @@ hardline_blocklist:
   # Always Deny — cannot be overridden by any config
   patterns:
     - "rm\\s+-[a-zA-Z]*r[a-zA-Z]*f\\s+/"  # rm -rf /
+    - "\\brm\\s+(?:-\\S+\\s+)*-\\S*[rR]\\S*\\s+(?:-\\S+\\s+)*/(?:\\*|\\s|$)"  # rm -fr / , rm -Rf / , rm -r -f /
     - "mkfs"
     - "dd\\s+.*of=/dev/"
     - ":\\(\\)\\{.*\\}.*:"                  # fork bomb

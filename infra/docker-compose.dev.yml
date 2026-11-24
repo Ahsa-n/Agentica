@@ -23,7 +23,7 @@ services:
     command: >
       bash -c "
         apt-get update -qq &&
-        apt-get install -y -qq openssh-server nginx &&
+        apt-get install -y -qq openssh-server nginx procps &&
         mkdir -p /run/sshd &&
         echo 'root:test1234' | chpasswd &&
         sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config &&

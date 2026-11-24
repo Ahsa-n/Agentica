@@ -2,17 +2,20 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import DOMPurify from 'dompurify'
+import { Plus, Trash2, Send, StopCircle, Tag } from 'lucide-react'
 import { apiDelete, apiGet, apiPost } from '../api/client'
 import { streamMessage, SSEEvent } from '../api/sse'
-import ToolCallCard from '../components/ToolCallCard'
+import ToolCallCard, { ToolCallState } from '../components/ToolCallCard'
 import ApprovalPrompt from '../components/ApprovalPrompt'
 
 interface SessionInfo { id: string; title: string | null; updated_at: string }
-interface ToolCallState {
-  call_id: string; tool: string; args: Record<string, unknown>
-  decision?: string; reason?: string; rule_id?: string
-  result?: unknown; duration_ms?: number
-  awaitingApproval?: boolean
+
+interface HistoryMessage { role: 'user' | 'assistant'; content: string; toolCalls?: ToolCallState[] }
+
+interface ApprovalResponse {
+  ok: boolean; approved: boolean; answer?: string; error?: string
+  tool_call?: ToolCallState | null
+  next_approval?: ToolCallState | null
 }
 
 interface Message {
@@ -20,20 +23,32 @@ interface Message {
   content: string
   toolCalls?: ToolCallState[]
   streaming?: boolean
+  categories?: string[]
+  thinking?: boolean
 }
 
-const EXAMPLES = [
-  'What is the CPU usage right now?',
-  'Show me disk usage on all drives',
-  'Is nginx running?',
+const CATEGORY_COLORS: Record<string, string> = {
+  monitoring:   '#6ee7b7',
+  services:     '#60a5fa',
+  applications: '#60a5fa',
+  knowledge:    '#fbbf24',
+  remote:       '#c084fc',
+  logs:         '#f97316',
+  network:      '#34d399',
+}
+
+const DEFAULT_EXAMPLES = [
+  'What is the current CPU and memory usage?',
+  'Is nginx running? Check its status.',
   'How do I handle a full disk? (search KB)',
+  'List the top 5 processes by memory usage',
 ]
 
 export default function ChatPage() {
   const { sessionId: paramId } = useParams<{ sessionId?: string }>()
   const location = useLocation()
   const navigate = useNavigate()
-  const { forceCategories = [], examples = EXAMPLES } = (location.state as any) || {}
+  const { forceCategories = [], examples = DEFAULT_EXAMPLES } = (location.state as any) || {}
 
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [currentId, setCurrentId] = useState<string | null>(paramId || null)
@@ -42,49 +57,84 @@ export default function ChatPage() {
   const [running, setRunning] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  // Session we just created ourselves: its history is empty, and loading it would
+  // wipe the message that is already streaming.
+  const createdRef = useRef<string | null>(null)
 
-  const loadSessions = async () => {
-    const data = await apiGet<SessionInfo[]>('/api/sessions')
-    setSessions(data)
-  }
+  const loadSessions = useCallback(async () => {
+    try {
+      setSessions(await apiGet<SessionInfo[]>('/api/sessions'))
+    } catch {
+      /* backend offline — sidebar status dot already shows it */
+    }
+  }, [])
 
-  useEffect(() => { loadSessions() }, [])
+  const loadHistory = useCallback(async (id: string) => {
+    setMessages([])
+    try {
+      const hist = await apiGet<HistoryMessage[]>(`/api/sessions/${id}/messages`)
+      setMessages(hist.map(h => ({ role: h.role, content: h.content, toolCalls: h.toolCalls || [], streaming: false })))
+    } catch (e: any) {
+      setMessages([{ role: 'assistant', content: `**Error loading history:** ${e?.message || e}` }])
+    }
+  }, [])
+
+  useEffect(() => { loadSessions() }, [loadSessions])
+
+  // Open the session in the URL (sidebar click, dashboard "recent sessions", reload).
+  useEffect(() => {
+    if (!paramId || paramId === createdRef.current) return
+    setCurrentId(paramId)
+    loadHistory(paramId)
+  }, [paramId, loadHistory])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const newSession = async () => {
+  const newSession = async (): Promise<string> => {
     const { id } = await apiPost<{ id: string }>('/api/sessions')
+    createdRef.current = id
     setCurrentId(id)
     setMessages([])
     navigate(`/chat/${id}`, { state: location.state })
     await loadSessions()
+    return id
   }
 
   const deleteSession = async (id: string) => {
     await apiDelete(`/api/sessions/${id}`)
-    if (id === currentId) { setCurrentId(null); setMessages([]) }
+    if (id === currentId) {
+      setCurrentId(null)
+      setMessages([])
+      navigate('/chat')
+    }
     await loadSessions()
   }
 
   const send = async () => {
     const content = input.trim()
     if (!content || running) return
-    if (!currentId) { await newSession(); return }
+
+    // Create session first if needed, then immediately proceed
+    let activeSessionId = currentId
+    if (!activeSessionId) {
+      activeSessionId = await newSession()
+    }
 
     setInput('')
     setRunning(true)
 
     const userMsg: Message = { role: 'user', content }
-    const assistantMsg: Message = { role: 'assistant', content: '', streaming: true, toolCalls: [] }
+    const assistantMsg: Message = { role: 'assistant', content: '', streaming: true, toolCalls: [], thinking: true }
     setMessages(prev => [...prev, userMsg, assistantMsg])
 
     abortRef.current = new AbortController()
 
     try {
       await streamMessage({
-        sessionId: currentId,
+        sessionId: activeSessionId,
         content,
         forceCategories,
         signal: abortRef.current.signal,
@@ -93,42 +143,64 @@ export default function ChatPage() {
             const msgs = [...prev]
             const last = msgs[msgs.length - 1]
             if (!last || last.role !== 'assistant') return msgs
+            const updated = { ...last }
 
-            if (evt.type === 'policy_decision') {
-              const tc: ToolCallState = {
-                call_id: evt.data.call_id,
-                tool: evt.data.tool,
-                args: {},
-                decision: evt.data.decision,
-                reason: evt.data.reason,
-                rule_id: evt.data.rule_id,
+            if (evt.type === 'route') {
+              updated.categories = evt.data.categories
+              updated.thinking = false
+            } else if (evt.type === 'policy_decision') {
+              const existing = (updated.toolCalls || []).find(tc => tc.call_id === evt.data.call_id)
+              if (!existing) {
+                updated.toolCalls = [...(updated.toolCalls || []), {
+                  call_id: evt.data.call_id, tool: evt.data.tool, args: evt.data.args || {},
+                  target_id: evt.data.target_id,
+                  decision: evt.data.decision, reason: evt.data.reason, rule_id: evt.data.rule_id,
+                }]
+              } else {
+                updated.toolCalls = (updated.toolCalls || []).map(tc =>
+                  tc.call_id === evt.data.call_id
+                    ? { ...tc, decision: evt.data.decision, reason: evt.data.reason, rule_id: evt.data.rule_id }
+                    : tc
+                )
               }
-              last.toolCalls = [...(last.toolCalls || []), tc]
+              updated.thinking = false
             } else if (evt.type === 'approval_required') {
-              last.toolCalls = (last.toolCalls || []).map(tc =>
+              updated.toolCalls = (updated.toolCalls || []).map(tc =>
                 tc.call_id === evt.data.call_id
                   ? { ...tc, awaitingApproval: true, args: evt.data.args }
                   : tc
               )
-              if (!last.toolCalls.find(tc => tc.call_id === evt.data.call_id)) {
-                last.toolCalls = [...last.toolCalls, { ...evt.data, awaitingApproval: true }]
+              if (!(updated.toolCalls || []).find(tc => tc.call_id === evt.data.call_id)) {
+                updated.toolCalls = [...(updated.toolCalls || []), { ...evt.data, awaitingApproval: true }]
               }
+              updated.thinking = false
             } else if (evt.type === 'tool_end') {
-              last.toolCalls = (last.toolCalls || []).map(tc =>
+              if (!(updated.toolCalls || []).find(tc => tc.call_id === evt.data.call_id)) {
+                updated.toolCalls = [...(updated.toolCalls || []), {
+                  call_id: evt.data.call_id, tool: evt.data.tool, args: evt.data.args || {},
+                  target_id: evt.data.target_id,
+                }]
+              }
+              updated.toolCalls = (updated.toolCalls || []).map(tc =>
                 tc.call_id === evt.data.call_id
                   ? { ...tc, result: evt.data.result, duration_ms: evt.data.duration_ms, awaitingApproval: false }
                   : tc
               )
+              updated.thinking = false
             } else if (evt.type === 'token') {
-              last.content += evt.data.text
+              updated.content = (updated.content || '') + evt.data.text
+              updated.thinking = false
             } else if (evt.type === 'final') {
-              last.content = evt.data.answer
-              last.streaming = false
+              updated.content = evt.data.answer
+              updated.streaming = false
+              updated.thinking = false
             } else if (evt.type === 'error') {
-              last.content = `Error: ${evt.data.message}`
-              last.streaming = false
+              updated.content = `**Error:** ${evt.data.message}`
+              updated.streaming = false
+              updated.thinking = false
             }
 
+            msgs[msgs.length - 1] = updated
             return msgs
           })
         },
@@ -137,13 +209,23 @@ export default function ChatPage() {
           setMessages(prev => {
             const msgs = [...prev]
             const last = msgs[msgs.length - 1]
-            if (last) last.streaming = false
+            if (last) { msgs[msgs.length - 1] = { ...last, streaming: false, thinking: false } }
             return msgs
           })
           loadSessions()
         },
       })
-    } catch {
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        setMessages(prev => {
+          const msgs = [...prev]
+          const last = msgs[msgs.length - 1]
+          if (last?.role === 'assistant') {
+            msgs[msgs.length - 1] = { ...last, content: `**Error:** ${e?.message || 'Unknown error'}`, streaming: false, thinking: false }
+          }
+          return msgs
+        })
+      }
       setRunning(false)
     }
   }
@@ -155,37 +237,82 @@ export default function ChatPage() {
   }
 
   const approve = async (callId: string, sessionId: string, approved: boolean) => {
-    await apiPost(`/api/sessions/${sessionId}/approvals/${callId}`, { approved })
+    setRunning(true)
+    try {
+      const result = await apiPost<ApprovalResponse>(
+        `/api/sessions/${sessionId}/approvals/${callId}`,
+        { approved }
+      )
+      setMessages(prev => {
+        // Mark the card as decided and attach the tool's real result.
+        const msgs = prev.map(m => !m.toolCalls ? m : {
+          ...m,
+          toolCalls: m.toolCalls.map(tc => tc.call_id !== callId ? tc : {
+            ...tc,
+            ...(result.tool_call ? { result: result.tool_call.result, duration_ms: result.tool_call.duration_ms ?? undefined } : {}),
+            awaitingApproval: false,
+            approval: approved ? 'approved' as const : 'denied' as const,
+          }),
+        })
+        const text = result.ok ? result.answer : `**Error:** ${result.error || 'approval failed'}`
+        if (text || result.next_approval) {
+          msgs.push({
+            role: 'assistant', content: text || '', streaming: false,
+            toolCalls: result.next_approval ? [result.next_approval] : [],
+          })
+        }
+        return msgs
+      })
+    } finally {
+      setRunning(false)
+      loadSessions()
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    }
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
+    <div className="chat-shell">
       {/* Session sidebar */}
-      <div style={{ width: 220, borderRight: '1px solid #2a2a2a', background: '#161616', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '0.75rem' }}>
-          <button onClick={newSession} style={btnStyle('#6ee7b7', '#0f0f0f', '100%')}>
-            + New Session
+      <div className="chat-sessions" style={{ borderRight: '1px solid #1e1e1e', background: '#0d0d0d', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '0.65rem' }}>
+          <button onClick={() => newSession()} className="btn-new-session">
+            <Plus size={14} strokeWidth={2.5} /> New Session
           </button>
         </div>
-        <div style={{ flex: 1, overflow: 'auto' }}>
+
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 0.4rem' }}>
           {sessions.map(s => (
-            <div key={s.id}
-              onClick={() => { setCurrentId(s.id); navigate(`/chat/${s.id}`) }}
+            <div
+              key={s.id}
+              className="session-item"
+              onClick={() => { if (!running && s.id !== currentId) navigate(`/chat/${s.id}`) }}
               style={{
-                padding: '0.6rem 0.75rem',
+                padding: '0.55rem 0.6rem',
                 cursor: 'pointer',
-                background: s.id === currentId ? 'rgba(110,231,183,0.08)' : 'transparent',
-                borderLeft: s.id === currentId ? '3px solid #6ee7b7' : '3px solid transparent',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                fontSize: '0.8rem', color: '#ccc',
+                background: s.id === currentId ? 'rgba(110,231,183,0.07)' : 'transparent',
+                borderLeft: `2px solid ${s.id === currentId ? '#6ee7b7' : 'transparent'}`,
+                borderRadius: '0 6px 6px 0',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                fontSize: '0.8rem', color: s.id === currentId ? '#ccc' : '#666',
+                marginBottom: 2,
               }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {s.title || 'Session'}
               </span>
               <button
                 onClick={e => { e.stopPropagation(); deleteSession(s.id) }}
-                style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', padding: '0 2px', fontSize: '0.9rem' }}>
-                ×
+                className="icon-btn"
+                style={{
+                  background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer',
+                  padding: '2px 3px', borderRadius: 4, display: 'flex', alignItems: 'center', flexShrink: 0,
+                }}>
+                <Trash2 size={11} strokeWidth={1.8} />
               </button>
             </div>
           ))}
@@ -193,35 +320,76 @@ export default function ChatPage() {
       </div>
 
       {/* Chat area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="chat-area">
         {/* Messages */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem' }}>
+        <div className="chat-messages">
           {messages.length === 0 && (
-            <div style={{ textAlign: 'center', marginTop: '4rem', color: '#555' }}>
-              <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>How can I help?</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
-                {examples.slice(0, 4).map((e: string, i: number) => (
-                  <button key={i} onClick={() => { setInput(e) }}
-                    style={{ background: '#1a1a1a', border: '1px solid #333', color: '#aaa', padding: '0.4rem 0.8rem', borderRadius: 20, cursor: 'pointer', fontSize: '0.8rem' }}>
-                    {e}
-                  </button>
-                ))}
-              </div>
+            <div style={{ textAlign: 'center', marginTop: '5rem', color: '#444' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚡</div>
+              <p style={{ fontSize: '1rem', color: '#666', marginBottom: '1.5rem' }}>
+                {currentId ? 'Ask about your systems…' : 'Start a new session to chat'}
+              </p>
+              {(examples as string[]).slice(0, 4).map((e: string, i: number) => (
+                <button
+                  key={i}
+                  className="example-btn"
+                  onClick={() => setInput(e)}
+                  style={{
+                    display: 'block', margin: '0 auto 0.4rem',
+                    background: '#141414', border: '1px solid #222', color: '#888',
+                    padding: '0.45rem 1rem', borderRadius: 20, cursor: 'pointer',
+                    fontSize: '0.82rem', transition: 'all 0.12s', maxWidth: 420, width: '100%',
+                  }}>
+                  {e}
+                </button>
+              ))}
             </div>
           )}
 
           {messages.map((msg, i) => (
-            <div key={i} style={{ marginBottom: '1.5rem' }}>
+            <div key={i} className="msg-enter" style={{ marginBottom: '1.5rem' }}>
               {msg.role === 'user' ? (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{ background: '#2a2a2a', borderRadius: '12px 12px 2px 12px', padding: '0.75rem 1rem', maxWidth: '75%', fontSize: '0.9rem' }}>
+                  <div style={{
+                    background: '#1e1e1e', borderRadius: '14px 14px 2px 14px',
+                    padding: '0.7rem 1rem', maxWidth: '78%',
+                    fontSize: '0.9rem', lineHeight: 1.6, color: '#e5e5e5',
+                    border: '1px solid #2a2a2a',
+                  }}>
                     {msg.content}
                   </div>
                 </div>
               ) : (
-                <div>
+                <div style={{ maxWidth: '88%' }}>
+                  {/* Route categories */}
+                  {msg.categories && msg.categories.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                      <Tag size={12} color="#3a3a3a" strokeWidth={1.8} style={{ marginTop: 2 }} />
+                      {msg.categories.map(cat => (
+                        <span key={cat} className="tag" style={{
+                          background: 'transparent',
+                          color: CATEGORY_COLORS[cat] || '#888',
+                          border: `1px solid ${CATEGORY_COLORS[cat] || '#333'}33`,
+                          opacity: 0.8,
+                        }}>
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Thinking indicator */}
+                  {msg.thinking && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem 0' }}>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <span className="dot1" /><span className="dot2" /><span className="dot3" />
+                      </div>
+                      <span style={{ color: '#555', fontSize: '0.78rem' }}>Agent is thinking…</span>
+                    </div>
+                  )}
+
                   {/* Tool calls */}
-                  {msg.toolCalls?.map(tc => (
+                  {(msg.toolCalls || []).map(tc => (
                     <div key={tc.call_id}>
                       <ToolCallCard toolCall={tc} />
                       {tc.awaitingApproval && currentId && (
@@ -233,11 +401,16 @@ export default function ChatPage() {
                       )}
                     </div>
                   ))}
+
                   {/* Answer */}
                   {msg.content && (
-                    <div style={{ background: '#1a1a1a', borderRadius: '2px 12px 12px 12px', padding: '0.75rem 1rem', maxWidth: '90%', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                    <div style={{
+                      background: '#111', borderRadius: '2px 14px 14px 14px',
+                      padding: '0.75rem 1rem', fontSize: '0.9rem', lineHeight: 1.7,
+                      border: '1px solid #1e1e1e',
+                    }}>
                       <ReactMarkdown>{DOMPurify.sanitize(msg.content)}</ReactMarkdown>
-                      {msg.streaming && <span style={{ color: '#6ee7b7' }}>▌</span>}
+                      {msg.streaming && <span className="cursor-blink">▌</span>}
                     </div>
                   )}
                 </div>
@@ -247,36 +420,34 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input area */}
-        <div style={{ padding: '1rem', borderTop: '1px solid #2a2a2a', display: 'flex', gap: '0.5rem' }}>
-          <input
+        {/* Input */}
+        <div className="chat-input-bar">
+          <textarea
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
-            placeholder={currentId ? 'Ask about your systems...' : 'Create a session to start chatting'}
-            disabled={!currentId || running}
-            style={{
-              flex: 1, background: '#1a1a1a', border: '1px solid #333', borderRadius: 8,
-              padding: '0.75rem 1rem', color: '#e5e5e5', fontSize: '0.9rem', outline: 'none',
+            onKeyDown={handleKeyDown}
+            placeholder={currentId ? 'Ask about your systems… (Enter to send, Shift+Enter for newline)' : 'Type a message to start…'}
+            disabled={running}
+            rows={1}
+            className="chat-textarea"
+            onInput={e => {
+              const t = e.currentTarget
+              t.style.height = 'auto'
+              t.style.height = Math.min(t.scrollHeight, 120) + 'px'
             }}
           />
           {running ? (
-            <button onClick={cancel} style={btnStyle('#ef4444', '#fff')}>Stop</button>
+            <button onClick={cancel} className="btn-stop">
+              <StopCircle size={15} strokeWidth={2} /> Stop
+            </button>
           ) : (
-            <button onClick={send} disabled={!currentId || !input.trim()} style={btnStyle('#6ee7b7', '#0f0f0f')}>
-              Send
+            <button onClick={send} disabled={!input.trim()} className="btn-send">
+              <Send size={15} strokeWidth={2.5} /> Send
             </button>
           )}
         </div>
       </div>
     </div>
   )
-}
-
-function btnStyle(bg: string, color: string, width?: string): React.CSSProperties {
-  return {
-    background: bg, color, border: 'none', borderRadius: 8,
-    padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600,
-    fontSize: '0.85rem', width,
-  }
 }

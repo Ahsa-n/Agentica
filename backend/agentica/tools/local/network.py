@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from agentica.tools.base import BaseTool, BaseTarget, RiskTier, ToolCategory, ToolSpec
 from agentica.tools.registry import registry
+from agentica.tools.remote.collectors import backend_for, is_remote
 
 
 class CheckPortInput(BaseModel):
@@ -34,6 +35,11 @@ class CheckPort(BaseTool[CheckPortInput, CheckPortResult]):
     )
 
     async def run(self, args: CheckPortInput, target: BaseTarget | None = None) -> CheckPortResult:
+        if is_remote(target) and args.host in ("localhost", "127.0.0.1", "::1", getattr(target, "host", None)):
+            # "Is port N open on the remote machine itself?" — answered from the target's
+            # own list of listening sockets, so firewalls between us and it don't matter.
+            ports = await backend_for(target).listening_ports(target)
+            return CheckPortResult(host=getattr(target, "host", args.host), port=args.port, open=args.port in ports)
         try:
             with socket.create_connection((args.host, args.port), timeout=args.timeout):
                 open_ = True

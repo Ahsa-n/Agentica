@@ -40,9 +40,19 @@ async def lifespan(app: FastAPI):
     global LAUNCH_TOKEN
     cfg = get_settings()
     configure_logging(cfg.app.log_level)
+    if cfg.llm.mode == "local":
+        # Zero egress: HF/transformers offline, tracing off; HTTP checks go through check_egress.
+        from agentica.config.egress_guard import enforce_local_mode
+        enforce_local_mode()
     LAUNCH_TOKEN = _init_token()
     logger.info("agentica_started", port=cfg.app.port, mode=cfg.llm.mode)
+
+    # Resume the knowledge-base folder watcher + rescan without blocking startup.
+    from agentica.api.knowledge import resume_knowledge_base, stop_watcher
+    kb_task = asyncio.create_task(resume_knowledge_base())
     yield
+    kb_task.cancel()
+    stop_watcher()
     logger.info("agentica_stopped")
 
 

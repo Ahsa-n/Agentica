@@ -51,30 +51,82 @@ async def list_documents() -> list[dict]:
         ]
 
 
-@router.post("/knowledge/folder")
-async def set_folder(body: SetFolderRequest) -> dict:
+_KB_FOLDER_KEY = "kb_folder"
+
+
+async def _get_setting(key: str) -> str | None:
+    async with get_session_factory()() as session:
+        row = (await session.execute(
+            text("SELECT value FROM app_settings WHERE key = :k"), {"k": key}
+        )).fetchone()
+        return row[0] if row else None
+
+
+async def _set_setting(key: str, value: str) -> None:
+    async with get_session_factory()() as session:
+        await session.execute(
+            text(
+                "INSERT INTO app_settings (key, value, updated_at) VALUES (:k, :v, now()) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()"
+            ),
+            {"k": key, "v": value},
+        )
+        await session.commit()
+
+
+def _start_watcher(folder: Path) -> None:
     global _watcher
-    folder = Path(body.folder)
-    if not folder.exists() or not folder.is_dir():
-        raise HTTPException(status_code=400, detail=f"Folder not found: {body.folder}")
-
-    # Update settings
-    from agentica.config.loader import get_settings
-    cfg = get_settings()
-
-    # Stop previous watcher
+    from agentica.rag.ingest import FolderWatcher
     if _watcher:
         _watcher.stop()
-
-    # Rescan
-    docs = await ingest_folder(folder)
-
-    # Start new watcher
-    from agentica.rag.ingest import FolderWatcher
     _watcher = FolderWatcher(folder)
     _watcher.start()
 
-    return {"folder": str(folder), "documents": len(docs)}
+
+async def resume_knowledge_base() -> None:
+    """On startup: re-attach the watcher to the saved KB folder and rescan it.
+
+    The rescan picks up files changed while Agentica was not running and removes
+    documents whose files were deleted (stale content is cleared automatically).
+    """
+    try:
+        saved = await _get_setting(_KB_FOLDER_KEY)
+    except Exception as e:
+        logger.warning("kb_resume_failed", error=str(e))
+        return
+    if not saved or not Path(saved).is_dir():
+        return
+    folder = Path(saved)
+    _start_watcher(folder)
+    docs = await ingest_folder(folder)
+    logger.info("kb_resumed", folder=saved, documents=len(docs))
+
+
+def stop_watcher() -> None:
+    global _watcher
+    if _watcher:
+        _watcher.stop()
+        _watcher = None
+
+
+@router.get("/knowledge/folder")
+async def get_folder() -> dict:
+    saved = await _get_setting(_KB_FOLDER_KEY)
+    return {"folder": saved, "watching": _watcher is not None}
+
+
+@router.post("/knowledge/folder")
+async def set_folder(body: SetFolderRequest) -> dict:
+    folder = Path(body.folder)
+    if not folder.exists() or not folder.is_dir():
+        raise HTTPException(status_code=400, detail=f"Folder not found: {body.folder}")
+    folder = folder.resolve()
+
+    docs = await ingest_folder(folder)
+    _start_watcher(folder)
+    await _set_setting(_KB_FOLDER_KEY, str(folder))
+
+    return {"folder": str(folder), "documents": len(docs), "watching": True}
 
 
 @router.post("/knowledge/documents/{doc_id}/reindex")

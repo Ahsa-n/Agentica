@@ -11,6 +11,7 @@ from agentica.tools.base import (
     BaseTool, BaseTarget, RiskTier, ToolCategory, ToolResult, ToolSpec,
 )
 from agentica.tools.registry import registry
+from agentica.tools.remote.collectors import backend_for, is_remote
 
 
 # ─── Shared result models ────────────────────────────────────────────────────
@@ -119,6 +120,8 @@ class GetSystemOverview(BaseTool[EmptyInput, SystemOverviewResult]):
     )
 
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> SystemOverviewResult:
+        if is_remote(target):
+            return await backend_for(target).overview(target)
         import platform, time
         cpu_pct = psutil.cpu_percent(interval=0.5)
         vm = psutil.virtual_memory()
@@ -179,6 +182,8 @@ class GetCPUUsage(BaseTool[EmptyInput, CPUResult]):
     )
 
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> CPUResult:
+        if is_remote(target):
+            return await backend_for(target).cpu(target)
         try:
             load = list(psutil.getloadavg())
         except AttributeError:
@@ -201,6 +206,8 @@ class GetMemoryUsage(BaseTool[EmptyInput, MemoryResult]):
     )
 
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> MemoryResult:
+        if is_remote(target):
+            return await backend_for(target).memory(target)
         vm = psutil.virtual_memory()
         sw = psutil.swap_memory()
         return MemoryResult(
@@ -223,6 +230,8 @@ class GetDiskUsage(BaseTool[EmptyInput, DiskResult]):
     )
 
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> DiskResult:
+        if is_remote(target):
+            return await backend_for(target).disk(target)
         partitions = []
         for part in psutil.disk_partitions(all=False):
             try:
@@ -251,6 +260,8 @@ class GetNetworkStats(BaseTool[EmptyInput, NetworkResult]):
     )
 
     async def run(self, args: EmptyInput, target: BaseTarget | None = None) -> NetworkResult:
+        if is_remote(target):
+            return await backend_for(target).network(target)
         counters = psutil.net_io_counters(pernic=True)
         ifaces = []
         for name, c in counters.items():
@@ -276,14 +287,35 @@ class ListTopProcesses(BaseTool[TopProcessesInput, ProcessListResult]):
     )
 
     async def run(self, args: TopProcessesInput, target: BaseTarget | None = None) -> ProcessListResult:
-        procs = []
-        for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent", "status", "username"]):
+        if is_remote(target):
+            return await backend_for(target).top_processes(target, args.limit, args.sort_by)
+        import asyncio
+        # psutil's per-process cpu_percent is 0.0 on the first call; prime every process,
+        # wait one sampling interval, then read real values.
+        plist = list(psutil.process_iter())
+        for p in plist:
             try:
-                info = proc.info
+                p.cpu_percent(None)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        await asyncio.sleep(0.5)
+        ncpu = psutil.cpu_count(logical=True) or 1
+        procs = []
+        for proc in plist:
+            try:
+                with proc.oneshot():
+                    info = {
+                        "pid": proc.pid, "name": proc.name(), "cpu_percent": proc.cpu_percent(None) / ncpu,
+                        "memory_percent": proc.memory_percent(), "status": proc.status(),
+                    }
+                    try:
+                        info["username"] = proc.username()
+                    except psutil.AccessDenied:
+                        info["username"] = None
                 procs.append(ProcessInfo(
                     pid=info["pid"],
                     name=info["name"] or "",
-                    cpu_percent=info["cpu_percent"] or 0.0,
+                    cpu_percent=round(info["cpu_percent"] or 0.0, 1),
                     memory_percent=round(info["memory_percent"] or 0.0, 2),
                     status=info["status"] or "",
                     username=info.get("username"),
@@ -305,6 +337,8 @@ class GetProcessDetails(BaseTool[PidInput, ProcessInfo]):
     )
 
     async def run(self, args: PidInput, target: BaseTarget | None = None) -> ProcessInfo:
+        if is_remote(target):
+            return await backend_for(target).process_details(target, args.pid)
         try:
             proc = psutil.Process(args.pid)
             with proc.oneshot():

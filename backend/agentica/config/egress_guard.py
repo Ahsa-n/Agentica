@@ -33,16 +33,30 @@ def enforce_local_mode() -> None:
     logger.info("local_mode_enforced", hf_offline=1, transformers_offline=1)
 
 
-def is_local_allowed(url: str) -> bool:
-    """Return True if the URL is allowed in local mode."""
-    return any(p.match(url) for p in _LOCALHOST_PATTERNS)
+def is_local_allowed(url: str, extra_hosts: set[str] | None = None) -> bool:
+    """Return True if the URL is allowed in local mode (localhost or a configured target)."""
+    if any(p.match(url) for p in _LOCALHOST_PATTERNS):
+        return True
+    if extra_hosts:
+        from urllib.parse import urlparse
+        host = (urlparse(url).hostname or "").lower()
+        return host in {h.lower() for h in extra_hosts}
+    return False
+
+
+def configured_target_hosts() -> set[str]:
+    try:
+        from agentica.tools.remote.target_manager import load_targets
+        return {str(t["host"]) for t in load_targets() if t.get("host")}
+    except Exception:
+        return set()
 
 
 def check_egress(url: str, mode: str = "local") -> None:
     """Raise RuntimeError if url violates local mode egress policy."""
     if mode != "local":
         return
-    if not is_local_allowed(url):
+    if not is_local_allowed(url, configured_target_hosts()):
         raise RuntimeError(
             f"Egress blocked in local mode: {url}. "
             "Only localhost connections (Ollama, configured targets) are allowed."

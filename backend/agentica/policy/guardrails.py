@@ -35,6 +35,8 @@ class GuardrailResult:
 _HARDLINE: list[tuple[str, re.Pattern]] = [
     ("rm_rf_root",        re.compile(r"\brm\b.*-[a-zA-Z]*r[a-zA-Z]*f\s+/\s*$")),
     ("rm_rf_root2",       re.compile(r"\brm\b.*-rf\s+/")),
+    # Any flag order/case: rm -fr /, rm -Rf /, rm -r -f /, rm --recursive /*
+    ("rm_recursive_root", re.compile(r"\brm\s+(?:-\S+\s+)*-\S*[rR]\S*\s+(?:-\S+\s+)*/(?:\*|\s|$)")),
     ("mkfs",              re.compile(r"\bmkfs\b")),
     ("dd_block_device",   re.compile(r"\bdd\b.*\bof=/dev/")),
     ("fork_bomb",         re.compile(r":\s*\(\)\s*\{.*?\}\s*;?\s*:", re.DOTALL)),
@@ -89,10 +91,22 @@ def _segments(command: str) -> list[str]:
     return [s.strip() for s in raw if s.strip()]
 
 
+def _normalise(seg: str) -> str:
+    """Strip wrappers (sudo, env, timeout, ...) so `sudo -u x rm ...` is analysed as `rm ...`."""
+    try:
+        tokens = shlex.split(seg)
+    except ValueError:
+        return seg
+    return " ".join(_strip_wrappers(tokens))
+
+
 def _analyse_segment(seg: str) -> GuardrailResult:
+    # Check both forms: the raw segment (so `sudo -s` itself is seen) and the
+    # wrapper-stripped one (so `sudo -u x rm ...` is seen as `rm ...`).
+    forms = [seg, _normalise(seg)]
     # Hardline check
     for name, pat in _HARDLINE:
-        if pat.search(seg):
+        if any(pat.search(f) for f in forms):
             return GuardrailResult(
                 decision=GuardrailDecision.DENY,
                 reason=f"Hardline blocked pattern '{name}'",
@@ -100,7 +114,7 @@ def _analyse_segment(seg: str) -> GuardrailResult:
             )
     # Dangerous check
     for name, pat in _DANGEROUS:
-        if pat.search(seg):
+        if any(pat.search(f) for f in forms):
             return GuardrailResult(
                 decision=GuardrailDecision.CONFIRM,
                 reason=f"Dangerous pattern '{name}' requires confirmation",

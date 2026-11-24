@@ -35,11 +35,11 @@ async def hybrid_search(query: str, top_k: int = 5) -> list[KBChunkResult]:
                 c.content,
                 c.heading_path,
                 d.file_name AS document,
-                1 - (c.embedding <=> :embedding::vector) AS score
+                1 - (c.embedding <=> CAST(:embedding AS vector)) AS score
             FROM kb_chunks c
             JOIN kb_documents d ON d.id = c.document_id
             WHERE d.status = 'ok'
-            ORDER BY c.embedding <=> :embedding::vector
+            ORDER BY c.embedding <=> CAST(:embedding AS vector)
             LIMIT :limit
         """
         from sqlalchemy import text as sql_text
