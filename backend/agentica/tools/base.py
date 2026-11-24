@@ -47,6 +47,19 @@ InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
 
 
+def _compact_schema(schema: Any) -> Any:
+    """Deep copy of a JSON schema without Pydantic's redundant 'title' keys."""
+    if isinstance(schema, dict):
+        return {
+            k: _compact_schema(v) for k, v in schema.items()
+            # drop the "title" annotation, but keep a property literally named "title"
+            if not (k == "title" and isinstance(v, str))
+        }
+    if isinstance(schema, list):
+        return [_compact_schema(v) for v in schema]
+    return schema
+
+
 REMOTE_CAPABLE_CATEGORIES = frozenset({
     ToolCategory.MONITORING, ToolCategory.SERVICES, ToolCategory.APPLICATIONS,
     ToolCategory.LOGS, ToolCategory.NETWORK,
@@ -66,11 +79,12 @@ class ToolSpec(BaseModel):
         return self.category in REMOTE_CAPABLE_CATEGORIES
 
     def to_langchain_tool(self, targets: list[str] | None = None) -> dict[str, Any]:
-        params = self.input_schema
+        # Every token of tool schema is re-read by the model on every call; on a
+        # CPU-only host that costs seconds. Pydantic's auto "title" fields add nothing.
+        params = _compact_schema(self.input_schema)
         if targets and self.remote_capable:
             # `target` picks the machine; node_agent strips it from the args before
             # validation, so the tool's own input model never sees it.
-            params = copy.deepcopy(params)
             params.setdefault("properties", {})["target"] = {
                 "type": "string",
                 "enum": list(targets),

@@ -22,7 +22,8 @@ Working directory: `D:\Temp\Agentica`
 - Agent: LangGraph + langgraph-checkpoint-postgres (psycopg3)
 - DB: PostgreSQL 16 + pgvector (HNSW) + FTS; SQLAlchemy 2 + Alembic
 - Embeddings: sentence-transformers, intfloat/multilingual-e5-base (768d), local path
-- LLM: Ollama qwen2.5:7b-instruct (default); cloud optional
+- LLM: Ollama **qwen2.5:3b-instruct** — the only model installed and used (project decision 2026-11-24: the dev laptop is CPU-only, i7-8650U / 16 GB RAM, and 7B replies took minutes). Do not pull 7B or larger models. Cloud optional.
+- Ollama stores models in `C:\Users\Pc world\.ollama\models` (the Ollama app's own setting; the `OLLAMA_MODELS` env var is not used).
 - UI: React + TypeScript + Vite
 
 ## Virtualenv

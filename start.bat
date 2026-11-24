@@ -85,7 +85,10 @@ if not errorlevel 1 (
     echo       Backend already running.
     goto backend_up
 )
-start "Agentica Backend" /D "%ROOT%\backend" cmd /k "set HF_HOME=D:\Temp\hf-cache&& set SENTENCE_TRANSFORMERS_HOME=D:\Temp\hf-cache\sentence-transformers&& set TRANSFORMERS_CACHE=D:\Temp\hf-cache\transformers&& set HF_HUB_OFFLINE=1&& set TRANSFORMERS_OFFLINE=1&& %PY% run.py"
+:: Administrator rights let the agent start/stop/restart Windows services (UAC prompt).
+:: If the prompt is declined, the backend still starts, without service control.
+echo       Approve the Windows UAC prompt so Windows services can be started/stopped...
+powershell -NoProfile -Command "try { Start-Process -FilePath '%ROOT%\run_backend.bat' -Verb RunAs -ErrorAction Stop } catch { Write-Host '      UAC declined - starting without Administrator rights.'; Start-Process -FilePath '%ROOT%\run_backend.bat' }"
 echo       Waiting for backend...
 set /a tries=0
 :wait_backend

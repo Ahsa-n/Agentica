@@ -28,6 +28,9 @@ def _make_ollama(cfg):
         base_url=cfg.ollama_base_url,
         num_ctx=cfg.num_ctx,
         temperature=cfg.temperature,
+        keep_alive=cfg.keep_alive,
+        num_predict=cfg.num_predict,
+        repeat_penalty=cfg.repeat_penalty,
     )
 
 

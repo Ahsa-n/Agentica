@@ -112,23 +112,46 @@ async def node_agent(state: AgentState) -> dict:
         # monitoring/services/apps/logs/network tools with a `target` argument.
         cats = list(dict.fromkeys([*cats, _Cat.MONITORING, _Cat.SERVICES, _Cat.APPLICATIONS]))
 
-    specs = registry.specs_for_categories(cats)
-    # Always available: the system overview, and the knowledge base — SOP questions are
-    # often phrased like monitoring questions ("how do I handle a full disk?") and the
-    # router may not pick the knowledge category for them.
-    for always in ("get_system_overview", "search_knowledge_base"):
-        tool = registry.get(always)
-        if tool and tool.spec not in specs:
-            specs.append(tool.spec)
+    from agentica.config.loader import get_settings
+    stable = get_settings().llm.stable_tool_prompt
+    if stable:
+        # Identical tool list (registry order) on every call → cached prompt prefix.
+        specs = registry.all_specs()
+    else:
+        specs = registry.specs_for_categories(cats)
+        # Always available: the system overview, and the knowledge base — SOP questions
+        # are often phrased like monitoring questions ("how do I handle a full disk?").
+        for always in ("get_system_overview", "search_knowledge_base"):
+            tool = registry.get(always)
+            if tool and tool.spec not in specs:
+                specs.append(tool.spec)
 
     tools = registry.to_langchain_tools(specs, targets=target_ids)
     llm_with_tools = llm.bind_tools(tools) if tools else llm
 
     # Context budget: keep the last 20 messages, but never start on a ToolMessage
     # (it must follow the AIMessage that requested it).
-    messages = state.messages[-20:]
+    messages = list(state.messages[-20:])
     while messages and isinstance(messages[0], ToolMessage):
         messages = messages[1:]
+
+    # Per-turn note on the latest user message (sent to the model, not stored). It sits
+    # after the cached prefix, so it costs only a few tokens.
+    last_h = max((i for i, m in enumerate(messages) if isinstance(m, HumanMessage)), default=None)
+    if last_h is not None:
+        parts: list[str] = []
+        if stable and state.routed_categories:
+            parts.append(f"most relevant tool categories: {', '.join(state.routed_categories)}")
+        if sum(isinstance(m, HumanMessage) for m in messages) > 1:
+            # Only when there are earlier turns; otherwise small models echo it to the user.
+            parts.append("system values from earlier turns are stale, so fetch fresh ones with tools")
+        if parts:
+            h = messages[last_h]
+            note = "; ".join(parts)
+            messages[last_h] = HumanMessage(
+                content=f"{h.content}\n\n(Internal routing note, never mention it in the answer: {note}.)",
+                id=h.id,
+            )
 
     from langchain_core.messages import SystemMessage
     response = await llm_with_tools.ainvoke([SystemMessage(content=SYSTEM_PROMPT), *messages])
@@ -153,6 +176,19 @@ async def node_agent(state: AgentState) -> dict:
             if str(target_id).lower() not in said:
                 logger.info("target_dropped_not_named_by_user", target=target_id, tool=tc["name"])
                 target_id = None
+        elif target_ids:
+            # The reverse slip: the user named one registered machine in this message but
+            # a small model left `target` out. Use it rather than silently running locally.
+            spec_obj = registry.get(tc["name"])
+            last_h = next((m for m in reversed(state.messages) if isinstance(m, HumanMessage)), None)
+            if spec_obj and spec_obj.spec.remote_capable and last_h is not None:
+                import re as _re
+                text = str(last_h.content).lower()
+                named = [t for t in target_ids
+                         if _re.search(rf"(?<![\w.-]){_re.escape(t.lower())}(?![\w.-])", text)]
+                if len(named) == 1:
+                    logger.info("target_inferred_from_user_message", target=named[0], tool=tc["name"])
+                    target_id = named[0]
         pending = ToolCall(
             call_id=call_id,
             tool_name=tc["name"],

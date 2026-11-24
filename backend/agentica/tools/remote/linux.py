@@ -30,6 +30,8 @@ _PSEUDO_FS = {
 
 _GB = 1e9
 
+_CONTAINER_FILE_MOUNTS = {"/etc/hosts", "/etc/hostname", "/etc/resolv.conf"}
+
 
 class RemoteCommandError(RuntimeError):
     pass
@@ -117,6 +119,8 @@ def parse_df(text: str) -> DiskResult:
         device, fstype, blocks, used, avail, cap, mount = cols
         if fstype in _PSEUDO_FS or not blocks.isdigit():
             continue
+        if mount in _CONTAINER_FILE_MOUNTS:
+            continue  # Docker bind-mounts single files here; they are not real volumes
         parts_out.append(DiskPartition(
             mountpoint=mount,
             device=device,

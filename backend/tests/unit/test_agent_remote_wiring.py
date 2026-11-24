@@ -89,12 +89,15 @@ class _ToolCallingLLM:
     ("What is the CPU usage on linux-1?", "linux-1", "linux-1"),   # named by the user → used
     ("What is the CPU usage?", "linux-1", None),                   # not named → runs locally
     ("cpu please", "local", None),
+    ("Is the CPU busy on linux-1?", None, "linux-1"),             # model omitted target → inferred
+    ("Is the CPU busy on linux-10?", None, None),                 # no exact machine-name match
 ])
 async def test_agent_only_targets_machines_the_user_named(monkeypatch, user_text, llm_target, expected):
     from langchain_core.messages import HumanMessage
     import agentica.agent.graph as graph_mod
 
-    monkeypatch.setattr(graph_mod, "get_provider", lambda: _ToolCallingLLM({"target": llm_target}))
+    args = {"target": llm_target} if llm_target is not None else {}
+    monkeypatch.setattr(graph_mod, "get_provider", lambda: _ToolCallingLLM(args))
     monkeypatch.setattr("agentica.tools.remote.target_manager.list_target_ids", lambda: ["linux-1"])
     state = AgentState(run_config=RunConfig(session_id="t", routing_mode="flat"),
                        messages=[HumanMessage(content=user_text)])

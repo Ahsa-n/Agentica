@@ -2,6 +2,13 @@
 title Agentica Stop
 color 0C
 
+:: The backend usually runs as Administrator (see start.bat), so stopping it needs elevation.
+net session >nul 2>&1
+if errorlevel 1 (
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+
 echo.
 echo  Stopping Agentica servers...
 echo.
@@ -18,9 +25,8 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":5173.*LISTENING" 2^>nul') d
     taskkill /PID %%a /F >nul 2>&1
 )
 
-:: Close the titled windows
-taskkill /FI "WINDOWTITLE eq Agentica Backend" /F >nul 2>&1
-taskkill /FI "WINDOWTITLE eq Agentica UI" /F >nul 2>&1
+:: Close the titled windows (an elevated window is titled "Administrator: Agentica Backend")
+powershell -NoProfile -Command "Get-Process cmd -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Agentica Backend*' -or $_.MainWindowTitle -like '*Agentica UI*' } | Stop-Process -Force" >nul 2>&1
 
 echo  Done. All servers stopped.
 echo.

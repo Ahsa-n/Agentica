@@ -70,6 +70,12 @@ def test_parse_disk_single_object():
     assert r.partitions[0].percent == 75.0 and r.partitions[0].free_gb == 25.0
 
 
+def test_parse_processes_strips_instance_suffix():
+    procs = windows.parse_processes([{"Id": 10, "Name": "python#2", "Cpu": 1.5, "Mem": 3.2},
+                                     {"Id": 11, "Name": "svchost", "Cpu": 0, "Mem": 0.1}])
+    assert [p.name for p in procs] == ["python", "svchost"]
+
+
 def test_service_state_mapping():
     assert windows.service_state("Running") == "active"
     assert windows.service_state("Stopped") == "inactive"

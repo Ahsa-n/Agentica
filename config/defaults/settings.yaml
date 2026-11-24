@@ -1,4 +1,4 @@
-# Agentica settings — copied to OS config dir on first run
+# Agentica settings - copied to OS config dir on first run
 # DO NOT put secrets here; use the OS keyring instead
 
 app:
@@ -10,10 +10,14 @@ app:
 
 llm:
   mode: "local"            # local | cloud
-  local_model: "qwen2.5:7b-instruct"
+  local_model: "qwen2.5:3b-instruct"   # project model (the only model installed); fits a CPU-only laptop
   ollama_base_url: "http://localhost:11434"
   num_ctx: 8192
   temperature: 0.1
+  keep_alive: "30m"        # keep the model in RAM between chats (reload costs seconds-minutes)
+  num_predict: 512         # cap tokens per reply (stops runaway repetition loops)
+  repeat_penalty: 1.1
+  stable_tool_prompt: true # same tool list every call -> Ollama reuses its cached prompt (much faster)
   cloud_provider: null     # openai | anthropic
   cloud_model: null
 

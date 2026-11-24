@@ -86,7 +86,9 @@ app.include_router(machines.router, prefix="/api", dependencies=[Depends(require
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"status": "ok", "version": "0.1.0"}
+    cfg = get_settings().llm
+    model = cfg.local_model if cfg.mode == "local" else (cfg.cloud_model or cfg.cloud_provider)
+    return {"status": "ok", "version": "0.1.0", "mode": cfg.mode, "model": model}
 
 
 @app.get("/api/token")

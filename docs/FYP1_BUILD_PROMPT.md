@@ -134,7 +134,7 @@ Industry partner: ATCO Laboratories Limited. It has on-premises servers, works i
 | Agent | LangGraph (StateGraph, interrupts) + `langgraph-checkpoint-postgres` (`AsyncPostgresSaver`, psycopg 3) |
 | Database | PostgreSQL 16 + pgvector (HNSW) + PostgreSQL full-text search; SQLAlchemy 2 + Alembic |
 | Embeddings | `sentence-transformers`, `intfloat/multilingual-e5-base` (768 dims), loaded from a local path |
-| Local LLM | Ollama (already installed). `qwen2.5:7b-instruct` by default; `qwen2.5:14b-instruct` if RAM ≥ 16 GB and it is fast enough; `llama3.1:8b` as the alternative. Always set `num_ctx` explicitly (8192–16384). |
+| Local LLM | Ollama (already installed). **`qwen2.5:3b-instruct`** — project decision 2026-11-24: the development laptop is CPU-only (i7-8650U, 16 GB RAM) and 7B replies took several minutes, so 3B is the only model installed and used; do not pull larger models. Always set `num_ctx` explicitly (8192). |
 | Cloud LLM | Optional, behind one OpenAI-compatible provider interface. Used only if an API key is configured. |
 | System and services | `psutil`; `pystemd` on Linux hosts, `pywin32` on Windows hosts (installed conditionally) |
 | Remote | Fabric/Paramiko (SSH); `pywinrm` (HTTPS 5986, NTLM, pinned certificate) |
@@ -330,7 +330,7 @@ Pin exact versions in `pyproject.toml` and `package.json`.
    - Keep LangSmith tracing off.
 2. **Offline test.** An automated test runs the smoke tasks with outbound network blocked and asserts that there is no external traffic.
 3. **Model choice.**
-   - Compare `qwen2.5:7b-instruct`, `llama3.1:8b` and, if RAM allows, `qwen2.5:14b-instruct` on the eval tasks.
+   - Measure `qwen2.5:3b-instruct` (the project model, see Section 5) on the eval tasks. Larger models were ruled out on 2026-11-24 for speed on the CPU-only host.
    - Measure top-1 tool accuracy, schema-valid rate and median latency.
    - Set the best one as the default and record the numbers in `PROGRESS.md`.
 

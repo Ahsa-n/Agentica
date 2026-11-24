@@ -33,10 +33,21 @@ class AppConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     mode: Literal["local", "cloud"] = "local"
-    local_model: str = "qwen2.5:7b-instruct"
+    local_model: str = "qwen2.5:3b-instruct"  # project model; 7B is too slow on the CPU-only dev laptop
     ollama_base_url: str = "http://localhost:11434"
     num_ctx: int = 8192
     temperature: float = 0.1
+    # How long Ollama keeps the model in RAM after a request. Reloading a model on a
+    # memory-starved CPU-only machine took ~170 s, so keep it warm between chats.
+    keep_alive: str = "30m"
+    # Send the same full tool list on every call so Ollama can reuse its cached prompt
+    # prefix (system prompt + tools). Routing then becomes a hint on the user turn.
+    # On a CPU-only host this cuts each call from ~70 s to ~10-20 s.
+    stable_tool_prompt: bool = True
+    # Hard cap on tokens per model reply. Small models occasionally fall into a
+    # repetition loop; without a cap one reply ran for 10+ minutes on this CPU.
+    num_predict: int = 512
+    repeat_penalty: float = 1.1
     cloud_provider: str | None = None
     cloud_model: str | None = None
 

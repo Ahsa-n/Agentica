@@ -44,6 +44,30 @@ const DEFAULT_EXAMPLES = [
   'List the top 5 processes by memory usage',
 ]
 
+function Thinking({ working }: { working: boolean }) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.25rem 0 0.5rem', padding: '0.5rem 0', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+        <span className="dot1" /><span className="dot2" /><span className="dot3" />
+      </div>
+      <span style={{ color: '#666', fontSize: '0.78rem' }}>
+        {working ? 'Agent is working with the tool results…' : 'Agent is thinking…'} {secs}s
+      </span>
+      {secs >= 20 && (
+        <span style={{ color: '#444', fontSize: '0.72rem', width: '100%' }}>
+          The local model runs on this computer's CPU, so replies can take a minute or more.
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const { sessionId: paramId } = useParams<{ sessionId?: string }>()
   const location = useLocation()
@@ -113,18 +137,31 @@ export default function ChatPage() {
     await loadSessions()
   }
 
+  const sendingRef = useRef(false)
+
   const send = async () => {
     const content = input.trim()
-    if (!content || running) return
+    if (!content || running || sendingRef.current) return
 
-    // Create session first if needed, then immediately proceed
-    let activeSessionId = currentId
-    if (!activeSessionId) {
-      activeSessionId = await newSession()
-    }
-
+    // Lock immediately: creating the session is async, and a second click in that
+    // window used to create a second session and send the message twice.
+    sendingRef.current = true
     setInput('')
     setRunning(true)
+
+    let activeSessionId = currentId
+    if (!activeSessionId) {
+      try {
+        activeSessionId = await newSession()
+      } catch (e: any) {
+        sendingRef.current = false
+        setRunning(false)
+        setInput(content)
+        setMessages(prev => [...prev, { role: 'assistant', content: `**Error:** could not create a session (${e?.message || e})` }])
+        return
+      }
+    }
+    sendingRef.current = false
 
     const userMsg: Message = { role: 'user', content }
     const assistantMsg: Message = { role: 'assistant', content: '', streaming: true, toolCalls: [], thinking: true }
@@ -378,15 +415,8 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {/* Thinking indicator */}
-                  {msg.thinking && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem 0' }}>
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        <span className="dot1" /><span className="dot2" /><span className="dot3" />
-                      </div>
-                      <span style={{ color: '#555', fontSize: '0.78rem' }}>Agent is thinking…</span>
-                    </div>
-                  )}
+                  {/* Thinking indicator — shown until the answer arrives, with elapsed time */}
+                  {msg.streaming && !msg.content && <Thinking working={(msg.toolCalls || []).length > 0} />}
 
                   {/* Tool calls */}
                   {(msg.toolCalls || []).map(tc => (

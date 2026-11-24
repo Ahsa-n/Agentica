@@ -18,6 +18,10 @@ logger = get_logger(__name__)
 MAX_OUTPUT = 256 * 1024
 _POOL = ThreadPoolExecutor(max_workers=4)
 
+# Prepended to every remote script: no progress records (they arrive as CLIXML noise on
+# stderr) and UTF-8 console output (otherwise non-ASCII names come back in the OEM code page).
+PS_PREFIX = "$ProgressPreference = 'SilentlyContinue'; [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+
 # PowerShell treats these Unicode quotes exactly like an ASCII single quote.
 _PS_SINGLE_QUOTES = ("'", "‘", "’", "‚", "‛")
 
@@ -119,7 +123,7 @@ class WinRMTarget(BaseTarget):
     def _run_ps_sync(self, script: str, timeout: int) -> tuple[int, str, str]:
         # -EncodedCommand (UTF-16LE base64) passes the script verbatim — no command-line
         # quoting layer exists for a value to escape from.
-        encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+        encoded = base64.b64encode((PS_PREFIX + script).encode("utf-16-le")).decode("ascii")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="Unverified HTTPS request")
             p = self._get_protocol()

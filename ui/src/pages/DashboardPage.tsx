@@ -58,7 +58,8 @@ export default function DashboardPage() {
     Promise.all([
       apiGet<any[]>('/api/sessions'),
       apiGet<any[]>('/api/knowledge/documents'),
-    ]).then(([sessions, docs]) => {
+      fetch('/api/health').then(r => r.json()).catch(() => ({})),
+    ]).then(([sessions, docs, health]) => {
       setRecentSessions(sessions.slice(0, 5))
       const okDocs = docs.filter((d: any) => d.status === 'ok')
       const totalChunks = okDocs.reduce((sum: number, d: any) => sum + (d.chunk_count || 0), 0)
@@ -66,7 +67,7 @@ export default function DashboardPage() {
         { label: 'Sessions', value: sessions.length, color: '#6ee7b7' },
         { label: 'KB Documents', value: okDocs.length, color: '#fbbf24' },
         { label: 'KB Chunks', value: totalChunks, color: '#60a5fa' },
-        { label: 'Model', value: 'qwen2.5:7b', color: '#c084fc' },
+        { label: 'Model', value: (health as any)?.model || 'unknown', color: '#c084fc' },
       ])
     }).catch(() => {})
   }, [])

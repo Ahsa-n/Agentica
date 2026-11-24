@@ -131,9 +131,11 @@ def parse_network(data: Any) -> NetworkResult:
 
 
 def parse_processes(data: Any) -> list[ProcessInfo]:
+    # Perf-counter instance names number duplicates ("python#2"); show the real name.
     return [
-        ProcessInfo(pid=int(p.get("Id") or 0), name=str(p.get("Name", "")), cpu_percent=float(p.get("Cpu") or 0),
-                    memory_percent=float(p.get("Mem") or 0), status="running")
+        ProcessInfo(pid=int(p.get("Id") or 0), name=str(p.get("Name", "")).split("#", 1)[0],
+                    cpu_percent=float(p.get("Cpu") or 0), memory_percent=float(p.get("Mem") or 0),
+                    status="running")
         for p in as_list(data)
     ]
 
