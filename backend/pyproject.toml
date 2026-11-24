@@ -1,0 +1,84 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentica"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    # Web
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sse-starlette>=2.1.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    # Agent / LLM
+    "langgraph>=0.2.50",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    "langchain-core>=0.3.20",
+    "langchain-ollama>=0.2.0",
+    "langchain-openai>=0.2.0",
+    # DB
+    "sqlalchemy[asyncio]>=2.0.30",  # [asyncio] pulls greenlet, required by the async engine
+    "alembic>=1.14.0",
+    "psycopg[binary,pool]>=3.2.0",
+    "pgvector>=0.3.0",
+    # RAG / Embeddings
+    "sentence-transformers>=3.0.0",
+    "pypdf>=5.0.0",
+    "python-docx>=1.1.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "watchdog>=6.0.0",
+    "tiktoken>=0.7.0",
+    # System / Remote
+    "psutil>=6.0.0",
+    "fabric>=3.0.0",
+    "paramiko>=3.0.0",
+    "pywinrm>=0.4.0",
+    "pywin32>=306; sys_platform == 'win32'",  # Windows Service Control Manager (spec: services via pywin32)
+    # Utils
+    "keyring>=25.0.0",
+    "platformdirs>=4.0.0",
+    "pyyaml>=6.0.0",
+    "structlog>=24.0.0",
+    "python-multipart>=0.0.18",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+    "anyio>=4.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agentica"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--tb=short -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = [
+    "E501",
+    # `class X(str, Enum)` is kept on purpose: switching to StrEnum changes str()/format()
+    # of the members, which the SSE/JSON payloads and policy.yaml values rely on.
+    "UP042",
+    # Generic[...] base kept for BaseTool: tools read their input class from __orig_bases__.
+    "UP046",
+]
+
+[tool.coverage.run]
+source = ["agentica"]
+branch = true

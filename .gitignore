@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+*.whl
+.env
+.venv
+venv/
+env/
+pip-wheel-metadata/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Node
+node_modules/
+ui/dist/
+ui/.vite/
+
+# DB
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets.yaml
+
+# Config (keep defaults, not user config)
+!config/defaults/
+
+# Logs
+*.log
+logs/

@@ -1,0 +1,73 @@
+# Eval tasks — monitoring features
+# Format: prompt, gold_tool, gold_args, confirm_expected, success_check
+
+tasks:
+  - id: M01
+    prompt: "What is the current CPU usage?"
+    gold_tool: get_cpu_usage
+    gold_args: {}
+    confirm_expected: false
+    success_check: "percent in result"
+
+  - id: M02
+    prompt: "How much memory is available?"
+    gold_tool: get_memory_usage
+    gold_args: {}
+    confirm_expected: false
+    success_check: "available_gb in result"
+
+  - id: M03
+    prompt: "Show me disk usage"
+    gold_tool: get_disk_usage
+    gold_args: {}
+    confirm_expected: false
+    success_check: "partitions in result"
+
+  - id: M04
+    prompt: "What processes are using the most CPU?"
+    gold_tool: list_top_processes
+    gold_args: {sort_by: cpu, limit: 10}
+    confirm_expected: false
+    success_check: "processes in result"
+
+  - id: M05
+    prompt: "Give me a full system overview"
+    gold_tool: get_system_overview
+    gold_args: {}
+    confirm_expected: false
+    success_check: "hostname in result and cpu in result"
+
+  - id: M06
+    prompt: "Show me network stats"
+    gold_tool: get_network_stats
+    gold_args: {}
+    confirm_expected: false
+    success_check: "interfaces in result"
+
+  - id: M07
+    prompt: "What processes are using the most memory?"
+    gold_tool: list_top_processes
+    gold_args: {sort_by: memory}
+    confirm_expected: false
+    success_check: "processes in result"
+
+  - id: M08
+    prompt: "Is the system under high load?"
+    gold_tool: get_system_overview
+    gold_args: {}
+    confirm_expected: false
+    success_check: "cpu in result"
+
+  - id: M09
+    prompt: "Check if any disk partition is nearly full"
+    gold_tool: get_disk_usage
+    gold_args: {}
+    confirm_expected: false
+    success_check: "partitions in result"
+
+  - id: M10
+    prompt: "How long has the server been running?"
+    gold_tool: get_system_overview
+    gold_args: {}
+    confirm_expected: false
+    success_check: "uptime_hours in result"

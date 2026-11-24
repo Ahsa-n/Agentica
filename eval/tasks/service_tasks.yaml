@@ -1,0 +1,49 @@
+tasks:
+  - id: S01
+    prompt: "Is nginx running?"
+    gold_tool: get_service_status
+    gold_args: {name: nginx}
+    confirm_expected: false
+    success_check: "status in result"
+
+  - id: S02
+    prompt: "List all running services"
+    gold_tool: list_services
+    gold_args: {state_filter: active}
+    confirm_expected: false
+    success_check: "services in result"
+
+  - id: S03
+    prompt: "Restart nginx"
+    gold_tool: restart_service
+    gold_args: {name: nginx}
+    confirm_expected: true
+    success_check: "action == restart"
+
+  - id: S04
+    prompt: "Start the apache service"
+    gold_tool: start_service
+    gold_args: {name: apache2}
+    confirm_expected: true
+    success_check: "action == start"
+
+  - id: S05
+    prompt: "What services are failing?"
+    gold_tool: list_services
+    gold_args: {state_filter: failed}
+    confirm_expected: false
+    success_check: "services in result"
+
+  - id: S06
+    prompt: "Check the status of postgresql"
+    gold_tool: get_service_status
+    gold_args: {name: postgresql}
+    confirm_expected: false
+    success_check: "status in result"
+
+  - id: S07
+    prompt: "Stop the web server"
+    gold_tool: stop_service
+    gold_args: {name: nginx}
+    confirm_expected: true
+    success_check: "action == stop"

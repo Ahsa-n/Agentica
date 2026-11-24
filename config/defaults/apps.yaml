@@ -1,0 +1,29 @@
+# Application health definitions (F10). Each check that is present is evaluated:
+#   process_name  - a running process whose name contains this text
+#   service_name  - a systemd / Windows service that must be active
+#   tcp_port      - a TCP port that must be listening
+#   http_check    - URL that must answer with a non-5xx status
+# All checks pass -> UP, some -> DEGRADED, none -> DOWN, no checks -> UNKNOWN.
+# With a remote `target`, process/service/port are checked on that machine and a
+# localhost http_check URL is pointed at the target's host.
+apps:
+  - id: agentica-backend
+    display_name: "Agentica Backend API"
+    process_name: "python"
+    tcp_port: 8765
+    http_check: "http://localhost:8765/api/health"
+
+  - id: postgresql
+    display_name: "PostgreSQL (Agentica database)"
+    tcp_port: 5432
+
+  - id: ollama
+    display_name: "Ollama local LLM server"
+    process_name: "ollama"
+    tcp_port: 11434
+    http_check: "http://localhost:11434/api/tags"
+
+  - id: nginx
+    display_name: "Nginx Web Server"
+    process_name: "nginx"
+    tcp_port: 80

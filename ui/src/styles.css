@@ -1,0 +1,159 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f0f;
+  color: #e5e5e5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+@keyframes pulse3 {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.dot1, .dot2, .dot3 {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  animation: pulse3 1.3s ease-in-out infinite;
+}
+.dot2 { animation-delay: 0.2s; }
+.dot3 { animation-delay: 0.4s; }
+
+.cursor-blink { animation: blink 1s step-end infinite; color: #6ee7b7; }
+
+.msg-enter { animation: fadeIn 0.18s ease-out forwards; }
+
+.card-hover { transition: border-color 0.15s, background 0.15s; }
+.card-hover:hover { border-color: #4a4a4a !important; background: #1f1f1f !important; }
+
+.card-hover-green:hover { border-color: #6ee7b7 !important; background: rgba(110,231,183,0.04) !important; cursor: pointer; }
+
+.example-btn:hover { border-color: #6ee7b7 !important; color: #6ee7b7 !important; }
+
+.nav-item:hover { color: #ddd !important; background: rgba(255,255,255,0.03) !important; }
+
+.session-item:hover { background: rgba(110,231,183,0.04) !important; }
+
+.icon-btn:hover { color: #e5e5e5 !important; background: rgba(255,255,255,0.08) !important; }
+
+input:focus { outline: none !important; border-color: #6ee7b7 !important; box-shadow: 0 0 0 2px rgba(110,231,183,0.12); }
+
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid #2a2a2a;
+  border-top-color: #6ee7b7;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+code, pre { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+
+/* ── Responsive layout ─────────────────────────────────────────── */
+
+/* App shell */
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
+.app-sidebar { width: 220px; flex-shrink: 0; transition: width 0.2s, transform 0.2s; }
+.app-main { flex: 1; overflow: auto; display: flex; flex-direction: column; min-width: 0; }
+
+/* Chat layout */
+.chat-shell { display: flex; height: 100%; overflow: hidden; }
+.chat-sessions { width: 220px; flex-shrink: 0; }
+.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.chat-messages { flex: 1; overflow: auto; padding: 1.5rem 1.75rem; }
+.chat-input-bar { padding: 0.875rem 1rem; border-top: 1px solid #1a1a1a; background: #0d0d0d; display: flex; gap: 0.5rem; align-items: flex-end; }
+
+/* Dashboard grid */
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.875rem; }
+.stats-strip { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+/* Tablet — hide session sidebar, collapse app sidebar text */
+@media (max-width: 900px) {
+  .app-sidebar { width: 56px; }
+  .app-sidebar .sidebar-label { display: none; }
+  .app-sidebar .sidebar-brand-text { display: none; }
+  .app-sidebar .sidebar-status-text { display: none; }
+  .chat-sessions { width: 180px; }
+  .chat-messages { padding: 1rem; }
+  .dash-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+}
+
+/* Mobile — stack layout, hide session column */
+@media (max-width: 640px) {
+  .app-sidebar { width: 48px; }
+  .chat-sessions { display: none; }
+  .chat-messages { padding: 0.75rem; }
+  .chat-input-bar { padding: 0.6rem 0.75rem; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .stats-strip > * { flex: 1; min-width: 80px; }
+  .msg-user { max-width: 92% !important; }
+  .msg-assistant { max-width: 98% !important; }
+}
+
+/* Input auto-grow */
+.chat-textarea {
+  flex: 1; background: #141414; border: 1px solid #2a2a2a; border-radius: 10px;
+  padding: 0.7rem 1rem; color: #e5e5e5; font-size: 0.9rem;
+  resize: none; outline: none; line-height: 1.5; max-height: 120px;
+  font-family: inherit; transition: border-color 0.12s; min-width: 0;
+}
+.chat-textarea:focus { border-color: #6ee7b7; box-shadow: 0 0 0 2px rgba(110,231,183,0.12); }
+
+/* Send / Stop buttons */
+.btn-send {
+  background: #6ee7b7; color: #0a0a0a; border: none; border-radius: 10px;
+  padding: 0.7rem 1.1rem; cursor: pointer; font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btn-send:disabled { background: #1a1a1a; color: #3a3a3a; cursor: default; }
+.btn-send:not(:disabled):hover { background: #86efac; }
+
+.btn-stop {
+  background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 10px; padding: 0.7rem 1rem; cursor: pointer; font-weight: 600;
+  font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+}
+.btn-stop:hover { background: rgba(239,68,68,0.25); }
+
+/* New session button */
+.btn-new-session {
+  width: 100%; background: rgba(110,231,183,0.08); color: #6ee7b7;
+  border: 1px solid rgba(110,231,183,0.2); border-radius: 7px;
+  padding: 0.5rem; cursor: pointer; font-weight: 600; font-size: 0.82rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  transition: background 0.15s;
+}
+.btn-new-session:hover { background: rgba(110,231,183,0.14); }
+
+/* Page containers */
+.page-container { padding: 2rem; max-width: 960px; margin: 0 auto; }
+.page-pad { padding: 2rem; width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) {
+  .page-container { padding: 1rem; }
+  .page-pad { padding: 1rem; }
+  .kb-row { flex-wrap: wrap; }
+  .kb-row > button { width: 100%; justify-content: center; }
+}

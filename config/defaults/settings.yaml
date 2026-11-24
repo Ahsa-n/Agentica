@@ -1,0 +1,45 @@
+# Agentica settings - copied to OS config dir on first run
+# DO NOT put secrets here; use the OS keyring instead
+
+app:
+  name: Agentica
+  version: "0.1.0"
+  host: "127.0.0.1"
+  port: 8765
+  log_level: "INFO"
+
+llm:
+  mode: "local"            # local | cloud
+  local_model: "qwen2.5:3b-instruct"   # project model (the only model installed); fits a CPU-only laptop
+  ollama_base_url: "http://localhost:11434"
+  num_ctx: 8192
+  temperature: 0.1
+  keep_alive: "30m"        # keep the model in RAM between chats (reload costs seconds-minutes)
+  num_predict: 512         # cap tokens per reply (stops runaway repetition loops)
+  repeat_penalty: 1.1
+  stable_tool_prompt: true # same tool list every call -> Ollama reuses its cached prompt (much faster)
+  cloud_provider: null     # openai | anthropic
+  cloud_model: null
+
+agent:
+  max_steps: 10
+  max_validation_retries: 2
+  max_denies_per_turn: 2
+  routing_mode: "routed"   # routed | flat
+
+rag:
+  kb_folder: null          # set by user via UI
+  chunk_size_tokens: 400
+  chunk_overlap_tokens: 50
+  top_k_dense: 50
+  top_k_keyword: 50
+  rrf_k: 60
+  similarity_threshold: 0.35
+  embedding_model_path: null   # local path; null = download once
+
+db:
+  host: "127.0.0.1"
+  port: 5432
+  name: "agentica"
+  user: "agentica"
+  # password in keyring under service=agentica key=db_password
