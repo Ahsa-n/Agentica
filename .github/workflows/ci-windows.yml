@@ -19,11 +19,12 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install backend (without psycopg binary on Windows CI)
+      - name: Install backend
+        # Same install as the Ubuntu job: a hand-picked package list left out sqlalchemy,
+        # langgraph-checkpoint-postgres, paramiko, pywinrm, pywin32... and broke test collection.
         run: |
           cd backend
-          pip install -e ".[dev]" --no-deps
-          pip install fastapi uvicorn pydantic pydantic-settings langgraph langchain-core langchain-ollama psutil keyring platformdirs pyyaml structlog python-multipart httpx tiktoken watchdog beautifulsoup4 lxml pypdf python-docx sentence-transformers pytest pytest-asyncio pytest-cov ruff anyio
+          pip install -e ".[dev]"
 
       - name: Lint
         run: cd backend && ruff check agentica tests

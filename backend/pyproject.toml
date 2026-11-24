@@ -20,7 +20,7 @@ dependencies = [
     "langchain-ollama>=0.2.0",
     "langchain-openai>=0.2.0",
     # DB
-    "sqlalchemy>=2.0.30",
+    "sqlalchemy[asyncio]>=2.0.30",  # [asyncio] pulls greenlet, required by the async engine
     "alembic>=1.14.0",
     "psycopg[binary,pool]>=3.2.0",
     "pgvector>=0.3.0",
