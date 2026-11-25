@@ -1,0 +1,87 @@
+{
+ "systemctl show nginx(\\.service)? --no-pager --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,MainPID": [
+  0,
+  "Id=nginx.service\nDescription=A high performance web server and a reverse proxy server\nLoadState=loaded\nActiveState=active\nSubState=running\nUnitFileState=enabled\nMainPID=1201\n",
+  ""
+ ],
+ "systemctl show postgresql(\\.service)? --no-pager --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,MainPID": [
+  0,
+  "Id=postgresql.service\nDescription=PostgreSQL RDBMS\nLoadState=loaded\nActiveState=active\nSubState=exited\nUnitFileState=enabled\nMainPID=0\n",
+  ""
+ ],
+ "systemctl show ssh(\\.service)? --no-pager --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,MainPID": [
+  0,
+  "Id=ssh.service\nDescription=OpenBSD Secure Shell server\nLoadState=loaded\nActiveState=active\nSubState=running\nUnitFileState=enabled\nMainPID=812\n",
+  ""
+ ],
+ "systemctl show redis-server(\\.service)? --no-pager --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,MainPID": [
+  0,
+  "Id=redis-server.service\nDescription=Advanced key-value store\nLoadState=loaded\nActiveState=failed\nSubState=failed\nUnitFileState=enabled\nMainPID=0\n",
+  ""
+ ],
+ "systemctl show .* --no-pager --property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,MainPID": [
+  0,
+  "Id=x.service\nLoadState=not-found\nActiveState=inactive\n",
+  ""
+ ],
+ "systemctl list-units --type=service --all --no-legend --plain --no-pager": [
+  0,
+  "nginx.service loaded active running A high performance web server and a reverse proxy server\npostgresql.service loaded active exited PostgreSQL RDBMS\nredis-server.service loaded failed failed Advanced key-value store\nssh.service loaded active running OpenBSD Secure Shell server\ncron.service loaded active running Regular background program processing daemon\nufw.service loaded inactive dead Uncomplicated firewall\n",
+  ""
+ ],
+ "systemctl list-units --type=service --all --no-legend --plain --no-pager --state=failed": [
+  0,
+  "redis-server.service loaded failed failed Advanced key-value store\n",
+  ""
+ ],
+ "systemctl list-units --type=service --all --no-legend --plain --no-pager --state=running": [
+  0,
+  "nginx.service loaded active running A high performance web server and a reverse proxy server\nssh.service loaded active running OpenBSD Secure Shell server\ncron.service loaded active running Regular background program processing daemon\n",
+  ""
+ ],
+ "systemctl list-units --type=service --all --no-legend --plain --no-pager --state=inactive": [
+  0,
+  "ufw.service loaded inactive dead Uncomplicated firewall\n",
+  ""
+ ],
+ "systemctl list-dependencies --reverse --plain --no-pager postgresql(\\.service)?": [
+  0,
+  "postgresql.service\n  app-backend.service\n  multi-user.target\n",
+  ""
+ ],
+ "systemctl list-dependencies --reverse --plain --no-pager .*": [
+  0,
+  "x.service\n  multi-user.target\n",
+  ""
+ ],
+ "systemctl is-active app-backend.service": [
+  0,
+  "active\n",
+  ""
+ ],
+ "sudo -n true": [
+  0,
+  "",
+  ""
+ ],
+ "sudo -n systemctl (start|stop|restart) redis-server": [
+  1,
+  "",
+  "sudo: a password is required\n"
+ ],
+ "sudo -S -p  systemctl (start|stop|restart) redis-server": [
+  1,
+  "",
+  "Sorry, user agentica is not allowed to execute '/usr/bin/systemctl start redis-server' as root on web-01.\n"
+ ],
+ "ss -ltnpH": [
+  0,
+  "LISTEN 0      511          0.0.0.0:80        0.0.0.0:*    users:((\"nginx\",pid=1202,fd=6),(\"nginx\",pid=1201,fd=6))\nLISTEN 0      511          0.0.0.0:443       0.0.0.0:*    users:((\"nginx\",pid=1202,fd=7),(\"nginx\",pid=1201,fd=7))\nLISTEN 0      244        127.0.0.1:5432      0.0.0.0:*    users:((\"postgres\",pid=1350,fd=5))\nLISTEN 0      128          0.0.0.0:22        0.0.0.0:*    users:((\"sshd\",pid=812,fd=3))\nLISTEN 0      128             [::]:22           [::]:*    users:((\"sshd\",pid=812,fd=4))\n",
+  ""
+ ],
+ "ip -4 -o addr show": [
+  0,
+  "1: lo    inet 127.0.0.1/8 scope host lo\\       valid_lft forever preferred_lft forever\n2: eth0    inet 10.0.0.21/24 brd 10.0.0.255 scope global eth0\\       valid_lft forever preferred_lft forever\n",
+  ""
+ ]
+}

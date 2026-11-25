@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Agentica Console</title>
+  <meta name="description" content="Agentica — governed IT operations agent console" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23110f0a'/%3E%3Cpath d='M9 25 16 7l7 18M11.6 19h8.8' fill='none' stroke='%23ffb224' stroke-width='2.6' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    try {
+      const t = localStorage.getItem('agentica.theme');
+      document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (_) {}
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="side" id="side" aria-label="Sessions">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+          <path class="bm-frame" d="M3 11V3h8M29 3h8v8M37 29v8h-8M11 37H3v-8" />
+          <path class="bm-a" d="M12 31 20 9l8 22M14.9 23.5h10.2" />
+          <rect class="bm-node" x="18" y="5.5" width="4" height="4" />
+        </svg>
+        <span class="brand-name">AGENTICA</span>
+      </div>
+
+      <button class="btn-new" id="btnNew" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        New session
+        <kbd>Alt N</kbd>
+      </button>
+
+      <div class="side-label side-label-row">
+        <span>Machines</span>
+        <button class="icon-btn xs" id="btnAddMachine" type="button" aria-label="Add machines" title="Add machines by IP or hostname">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <ul class="machines" id="machineList"></ul>
+
+      <div class="side-label">Recent</div>
+      <ul class="sessions" id="sessionList"></ul>
+
+      <div class="side-foot"><span class="led led-ok"></span> Local inference · private</div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="btnSide" type="button" aria-label="Toggle sidebar">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.5 4.5v15"/></svg>
+        </button>
+        <div class="title" id="title">New session</div>
+
+        <!-- minimized system monitor -->
+        <button class="mon-pill" id="monPill" type="button" aria-expanded="false" aria-controls="monitor" title="System monitor — click to expand">
+          <span class="led" id="monLed"></span>
+          <span class="mp-item"><span class="mp-k">CPU</span><span class="mp-v" id="pCpu">—</span></span>
+          <svg class="mp-spark" id="pSpark" viewBox="0 0 60 16" preserveAspectRatio="none" aria-hidden="true"><path d="" /></svg>
+          <span class="mp-item"><span class="mp-k">MEM</span><span class="mp-v" id="pMem">—</span></span>
+          <span class="mp-item mp-wide"><span class="mp-k">DISK</span><span class="mp-v" id="pDisk">—</span></span>
+          <span class="mp-item" id="pApps" hidden><span class="mp-k">APPS</span><span class="mp-v" id="pAppsV">—</span></span>
+          <span class="mp-item" id="pFleet" hidden><span class="mp-k">HOSTS</span><span class="mp-v" id="pFleetV">—</span></span>
+          <svg class="mp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </button>
+
+        <label class="target-pick" title="Machine the agent works on. Naming a machine in chat switches it too.">
+          <svg class="tp-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+          <select id="targetSelect" aria-label="Target machine"></select>
+          <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </label>
+
+        <label class="model-pick" id="modelPick" title="Model">
+          <span class="led" id="statusLed"></span>
+          <select id="modelSelect" aria-label="Model"></select>
+          <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </label>
+        <button class="icon-btn" id="btnTheme" type="button" aria-label="Toggle light / dark">
+          <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        </button>
+      </header>
+
+      <!-- maximized system monitor -->
+      <section class="monitor" id="monitor" aria-label="System monitor" hidden>
+        <header class="mon-head">
+          <span class="mon-title">System monitor</span>
+          <span class="mon-live"><span class="led led-ok pulse"></span>live · 1s</span>
+          <span class="mon-host" id="mHost">—</span>
+          <button class="icon-btn sm" id="monMin" type="button" aria-label="Minimize monitor">
+            <svg viewBox="0 0 24 24"><path d="m7 14 5-5 5 5"/></svg>
+          </button>
+        </header>
+        <div class="tiles">
+          <div class="tile">
+            <div class="t-head"><span>CPU</span><span id="mCores">—</span></div>
+            <div class="t-row"><div class="t-big" id="mCpu">—</div>
+              <svg class="t-spark" id="mCpuSpark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path class="area" d=""/><path class="line" d=""/></svg>
+            </div>
+            <div class="cores" id="mCoreBars"></div>
+          </div>
+          <div class="tile">
+            <div class="t-head"><span>Memory</span><span id="mMemText">—</span></div>
+            <div class="t-row"><div class="t-big" id="mMem">—</div>
+              <svg class="t-spark" id="mMemSpark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path class="area" d=""/><path class="line" d=""/></svg>
+            </div>
+            <div id="mDisks"></div>
+          </div>
+          <div class="tile">
+            <div class="t-head"><span>Network</span><span>rx / tx</span></div>
+            <div class="net"><span class="rx" id="mRx">—</span><span class="tx" id="mTx">—</span></div>
+            <svg class="t-spark wide" id="mNetSpark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path class="line rx" d=""/><path class="line tx" d=""/></svg>
+          </div>
+          <div class="tile">
+            <div class="t-head"><span>Top processes</span><span>cpu · mem</span></div>
+            <table class="procs"><tbody id="mProcs"></tbody></table>
+          </div>
+          <div class="tile">
+            <div class="t-head"><span>Model</span><span id="mModelState">—</span></div>
+            <div class="model-name" id="mModel">—</div>
+            <dl class="kv" id="mModelKv"></dl>
+          </div>
+        </div>
+        <div class="fleet" id="mApps">
+          <div class="fleet-head"><span>Applications</span>
+            <span class="fh-right"><span id="mAppsMeta">—</span>
+              <button class="icon-btn xs" id="btnAddApp" type="button" aria-label="Add application" title="Add an application to watch">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </span>
+          </div>
+          <div class="fleet-grid" id="mAppsGrid"></div>
+        </div>
+        <div class="fleet" id="mFleet" hidden>
+          <div class="fleet-head"><span>Machines</span><span id="mFleetMeta">—</span></div>
+          <div class="fleet-grid" id="mFleetGrid"></div>
+        </div>
+      </section>
+
+      <div class="scroller" id="scroller">
+        <div class="log" id="log">
+          <section class="hero" id="hero">
+            <h1 class="hero-word">AGENTICA</h1>
+            <p class="hero-tag">Your IT operations agent. Ask in plain language — it checks live system state before it answers.</p>
+            <div class="suggest" id="suggest"></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="modes" id="modes" role="radiogroup" aria-label="Tool scope"></div>
+        <form class="composer" id="composer" autocomplete="off">
+          <textarea id="input" rows="1" placeholder="Ask Agentica…" aria-label="Message"></textarea>
+          <div class="bar">
+            <button type="button" class="think" id="btnThink" role="switch" aria-checked="true" title="Reasoning on/off (Alt+T)">
+              <span class="think-track"><span class="think-knob"></span></span>
+              Think
+            </button>
+            <span class="bar-hint" id="modeHint"></span>
+            <button type="submit" class="send" id="btnSend" aria-label="Send">
+              <svg class="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+              <svg class="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <div class="scrim" id="scrim"></div>
+  </div>
+
+  <dialog class="dialog" id="machineDialog" aria-labelledby="mdTitle">
+    <form id="machineForm" novalidate>
+      <h2 id="mdTitle">Add machines</h2>
+      <p class="dlg-sub">Enter one or more IP addresses or hostnames. Agentica checks that each machine’s management port is reachable.</p>
+      <label class="fld">
+        <span>Machines</span>
+        <textarea id="mdHosts" rows="4" spellcheck="false" placeholder="192.168.1.20&#10;web-01, db-01.lab.local&#10;10.0.0.7:5985"></textarea>
+        <small>One per line or comma-separated. Add <code>:port</code> to override the default port.</small>
+      </label>
+      <div class="fld-row">
+        <label class="fld">
+          <span>Operating system</span>
+          <select id="mdOs"><option value="windows">Windows</option><option value="linux">Linux</option></select>
+        </label>
+        <label class="fld">
+          <span>Connection</span>
+          <select id="mdTransport"></select>
+        </label>
+      </div>
+      <label class="fld">
+        <span>Label <em>optional, for a single machine</em></span>
+        <input id="mdLabel" maxlength="40" placeholder="e.g. File server" autocomplete="off" />
+      </label>
+      <div class="fld-row">
+        <label class="fld">
+          <span>Username <em>optional</em></span>
+          <input id="mdUser" autocomplete="off" placeholder="agentica" />
+        </label>
+        <label class="fld">
+          <span>Password</span>
+          <input id="mdPass" type="password" autocomplete="new-password" />
+        </label>
+      </div>
+      <small class="dlg-note">Used for every machine above. Stored in Windows Credential Manager on this PC, never in Agentica’s database. Prepare each target once with <code>scripts\Enable-AgenticaTarget.ps1</code>; it creates the <code>agentica</code> account and prints these details.</small>
+      <div class="dlg-msg" id="mdMsg" role="status"></div>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" id="mdCancel">Close</button>
+        <button type="submit" class="btn primary" id="mdSubmit">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="appDialog" aria-labelledby="adTitle">
+    <form id="appForm" novalidate>
+      <h2 id="adTitle">Add application</h2>
+      <p class="dlg-sub">Agentica checks it every 15 seconds: is it running (process / service on its machine) and is it responding (window, port, URL). Pick a running app, or fill in the checks yourself.</p>
+      <div class="picker">
+        <label class="fld"><span>Pick a running app</span>
+          <input id="adPick" placeholder="Search running apps, e.g. code, sql, nginx…" autocomplete="off" /></label>
+        <label class="pick-bg"><input type="checkbox" id="adBg" /> include background programs</label>
+        <ul class="pick-list" id="adPickList" hidden></ul>
+        <div class="pick-ports" id="adPorts" hidden></div>
+      </div>
+      <div class="fld-row">
+        <label class="fld"><span>Name</span><input id="adName" maxlength="40" placeholder="e.g. Company website" autocomplete="off" /></label>
+        <label class="fld"><span>Runs on</span><select id="adMachine"></select></label>
+      </div>
+      <div class="fld-row">
+        <label class="fld"><span>Process <em>optional</em></span><input id="adProcess" placeholder="e.g. nginx, php-cgi" autocomplete="off" /></label>
+        <label class="fld"><span>Service <em>optional</em></span><input id="adService" placeholder="e.g. W3SVC" autocomplete="off" /></label>
+      </div>
+      <div class="fld-row">
+        <label class="fld fld-port"><span>Port <em>optional</em></span><input id="adPort" inputmode="numeric" placeholder="e.g. 443" autocomplete="off" /></label>
+        <label class="fld"><span>URL <em>optional</em></span><input id="adUrl" placeholder="e.g. http://intranet.local/health" autocomplete="off" /></label>
+      </div>
+      <div class="dlg-msg" id="adMsg" role="status"></div>
+      <ul class="app-hist" id="adHist" hidden></ul>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost danger" id="adRemove">Remove</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" id="adCheck">Check now</button>
+        <button type="button" class="btn ghost" id="adClose">Close</button>
+        <button type="submit" class="btn primary" id="adSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="connectDialog" aria-labelledby="cdTitle">
+    <form id="connectForm" novalidate>
+      <h2 id="cdTitle">Connect</h2>
+      <p class="dlg-sub" id="cdSub"></p>
+      <div class="fld-row">
+        <label class="fld">
+          <span>Username</span>
+          <input id="cdUser" autocomplete="off" placeholder="agentica" />
+        </label>
+        <label class="fld">
+          <span>Password</span>
+          <input id="cdPass" type="password" autocomplete="new-password" placeholder="unchanged" />
+        </label>
+      </div>
+      <small class="dlg-note">Stored in Windows Credential Manager on this PC, never in Agentica’s database.</small>
+      <div class="dlg-msg" id="cdMsg" role="status"></div>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost danger" id="cdRemove">Remove</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" id="cdTest">Test</button>
+        <button type="button" class="btn ghost" id="cdClose">Close</button>
+        <button type="submit" class="btn primary" id="cdSave">Save &amp; test</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
