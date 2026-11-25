@@ -1,0 +1,45 @@
+# ============================================================================
+#  Agentica policy
+#  Read on every tool call; edits apply immediately, no restart needed.
+#  If this file is invalid, Agentica falls back to the strict safe defaults
+#  (R0 allow, everything else confirm, no rules) and reports the error at
+#  GET /api/policy.
+# ============================================================================
+
+# Risk tiers. Each tool grades the concrete action against live state.
+#   R0  read-only, or a no-op (e.g. starting a service that is already running)
+#   R1  reversible change (start a stopped service)
+#   R2  disruptive change (stop or restart a running service)
+#   R3  destructive or protected (always denied, not configurable)
+defaults:
+  R0: allow
+  R1: confirm
+  R2: confirm
+
+# How long an approval request stays valid before it expires (minutes).
+approval_timeout_minutes: 15
+
+# Services the agent may never stop or restart, in addition to the built-in
+# hardline list (RpcSs, WinRM, EventLog, WinDefend, sshd, dbus, ...).
+# Names are case-insensitive. The built-in list cannot be removed from here.
+protected_services: []
+#  - MSSQLSERVER
+#  - W3SVC
+
+# Per-target rules. Evaluated top to bottom; the first match wins.
+#   tool     glob on the tool name           (service_restart, service_*, *)
+#   target   glob on the machine             (localhost, web-*, 10.0.0.*, *)
+#   service  glob on the service name        (optional)
+#   decision allow | confirm | deny
+# Rules can relax or tighten R0-R2; they can never allow a hardline/R3 action.
+rules: []
+#  - name: spooler restarts are routine here
+#    tool: service_restart
+#    target: localhost
+#    service: Spooler
+#    decision: allow
+#
+#  - name: never touch services on the database server
+#    tool: service_*
+#    target: db-*
+#    decision: deny

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local runtime data: sessions, audit log, approvals, machines, checkpoints, router cache
+data/
+
+# Test scratch databases
+tests/.tmp/
+tests/.tmp_halluc/
+
+# Environment / secrets
+.env
+*.local.*
+
+# Benchmark outputs (contain this PC's hostname, IPs and process list)
+tests/results/

@@ -1,0 +1,23 @@
+processor	: 0
+model name	: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
+cpu MHz		: 2399.998
+physical id	: 0
+core id		: 0
+
+processor	: 1
+model name	: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
+cpu MHz		: 2399.998
+physical id	: 0
+core id		: 1
+
+processor	: 2
+model name	: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
+cpu MHz		: 2399.998
+physical id	: 0
+core id		: 0
+
+processor	: 3
+model name	: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
+cpu MHz		: 2399.998
+physical id	: 0
+core id		: 1
